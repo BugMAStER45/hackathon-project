@@ -1,0 +1,23 @@
+# Dependencies & Runtimes
+node_modules/
+.venv/
+.tools/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build Outputs
+dist/
+build/
+*.egg-info/
+
+# Environment & Credentials
+.env
+.env.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+*.log
