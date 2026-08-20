@@ -1,115 +1,67 @@
-// In production (Render/Vercel), VITE_API_URL is set to the backend URL.
+// In production (Render), VITE_API_URL is set to the backend URL.
 // In development (Vite proxy), falls back to '/api'.
 const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api');
 
+async function fetcher(url, options) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  return res.json();
+}
 
 export const api = {
-  // Cities
-  async getCities() {
-    const res = await fetch(`${API_BASE}/zones/cities`);
-    return res.json();
-  },
+  // ── Zones ──
+  getZones:  (cityId = 'los_angeles') => fetcher(`${API_BASE}/zones?city_id=${cityId}`),
+  getCities: ()                        => fetcher(`${API_BASE}/zones/cities`),
 
-  // Pedestrian Zones & OSM
-  async getPedestrianZones(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/zones?city_id=${cityId}`);
-    return res.json();
-  },
+  // ── Heat / Hotspots ──
+  getHotspots: (cityId = 'los_angeles') => fetcher(`${API_BASE}/heat/hotspots?city_id=${cityId}`),
+  getLiveHeat: (cityId = 'los_angeles') => fetcher(`${API_BASE}/heat/live?city_id=${cityId}`),
+  getWatchlist:(cityId = 'los_angeles') => fetcher(`${API_BASE}/heat/watchlist?city_id=${cityId}`),
 
-  // FortyGuard Thermal & Hotspots
-  async getLiveHeat(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/heat/live?city_id=${cityId}`);
-    return res.json();
-  },
-
-  async getTopHotspots(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/heat/hotspots?city_id=${cityId}`);
-    return res.json();
-  },
-
-  async getWatchlist(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/heat/watchlist?city_id=${cityId}`);
-    return res.json();
-  },
-
-  // Cooling Stations
-  async getCoolingStations(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/cooling/stations?city_id=${cityId}`);
-    return res.json();
-  },
-
-  async getCoolingRecommendations(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/cooling/recommendations?city_id=${cityId}`);
-    return res.json();
-  },
-
-  async deployStation(data) {
-    const res = await fetch(`${API_BASE}/cooling/deploy`, {
+  // ── Cooling ──
+  getStations:       (cityId = 'los_angeles') => fetcher(`${API_BASE}/cooling/stations?city_id=${cityId}`),
+  getRecommendations:(cityId = 'los_angeles') => fetcher(`${API_BASE}/cooling/recommendations?city_id=${cityId}`),
+  deployStation: (cityId, data) =>
+    fetcher(`${API_BASE}/cooling/deploy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.json();
-  },
+      body: JSON.stringify({ ...data, city_id: cityId }),
+    }),
 
-  // Analytics & Correlations
-  async getWeeklyPatterns(cityId = 'los_angeles', days = 14) {
-    const res = await fetch(`${API_BASE}/analytics/weekly-patterns?city_id=${cityId}&days=${days}`);
-    return res.json();
-  },
+  // ── Analytics ──
+  getWeeklyPatterns: (cityId = 'los_angeles', days = 14) =>
+    fetcher(`${API_BASE}/analytics/weekly-patterns?city_id=${cityId}&days=${days}`),
+  getCorrelations: (cityId = 'los_angeles') =>
+    fetcher(`${API_BASE}/analytics/correlations?city_id=${cityId}`),
+  getKpis: (cityId = 'los_angeles') =>
+    fetcher(`${API_BASE}/analytics/kpis?city_id=${cityId}`),
 
-  async getCorrelations(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/analytics/correlations?city_id=${cityId}`);
-    return res.json();
-  },
-
-  async getResilienceKPIs(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/analytics/kpis?city_id=${cityId}`);
-    return res.json();
-  },
-
-  // Reports
-  async getMunicipalReport(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/reports/municipal?city_id=${cityId}`);
-    return res.json();
-  },
-
-  async submitCommunityReport(data) {
-    const res = await fetch(`${API_BASE}/reports/community`, {
+  // ── Safe Route ──
+  getSafeRoute: (cityId, params) =>
+    fetcher(`${API_BASE}/navigation/safe-route`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.json();
-  },
+      body: JSON.stringify({ ...params, city_id: cityId }),
+    }),
 
-  async getCommunityReports(cityId = 'los_angeles') {
-    const res = await fetch(`${API_BASE}/reports/community?city_id=${cityId}`);
-    return res.json();
-  },
-
-  // Safe Navigation
-  async computeSafeRoute(data) {
-    const res = await fetch(`${API_BASE}/navigation/safe-route`, {
+  // ── Reports ──
+  getMunicipalReport: (cityId = 'los_angeles') =>
+    fetcher(`${API_BASE}/reports/municipal?city_id=${cityId}`),
+  submitCommunityReport: (data) =>
+    fetcher(`${API_BASE}/reports/community`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.json();
-  },
+      body: JSON.stringify(data),
+    }),
+  getCommunityReports: (cityId = 'los_angeles') =>
+    fetcher(`${API_BASE}/reports/community?city_id=${cityId}`),
 
-  // Settings
-  async getSettings() {
-    const res = await fetch(`${API_BASE}/settings`);
-    return res.json();
-  },
-
-  async updateSettings(data) {
-    const res = await fetch(`${API_BASE}/settings`, {
+  // ── Settings ──
+  getSettings: () => fetcher(`${API_BASE}/settings`),
+  updateSettings: (data) =>
+    fetcher(`${API_BASE}/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.json();
-  }
+      body: JSON.stringify(data),
+    }),
 };

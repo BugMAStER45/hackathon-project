@@ -1,450 +1,407 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from './components/Navbar';
 import ThermalMap from './components/Map/ThermalMap';
 import HotspotList from './components/Planner/HotspotList';
 import WatchlistPanel from './components/Planner/WatchlistPanel';
 import StationOptimizer from './components/Planner/StationOptimizer';
-import MunicipalReportModal from './components/Planner/MunicipalReportModal';
+import ResilientCityMetrics from './components/Analytics/ResilientCityMetrics';
 import SafeRoutePlanner from './components/Citizen/SafeRoutePlanner';
 import CoolingOasisList from './components/Citizen/CoolingOasisList';
 import HeatHealthCard from './components/Citizen/HeatHealthCard';
-import CommunityReportModal from './components/Citizen/CommunityReportModal';
 import WeeklyPatternChart from './components/Analytics/WeeklyPatternChart';
 import CorrelationChart from './components/Analytics/CorrelationChart';
-import ResilientCityMetrics from './components/Analytics/ResilientCityMetrics';
-import SettingsModal from './components/Common/SettingsModal';
+import MunicipalReportModal from './components/Planner/MunicipalReportModal';
+import CommunityReportModal from './components/Citizen/CommunityReportModal';
 import DeployModal from './components/Common/DeployModal';
+import SettingsModal from './components/Common/SettingsModal';
+import ToastContainer from './components/Common/Toast';
+import LoadingSkeleton from './components/Common/LoadingSkeleton';
 import { api } from './services/api';
-import { 
-  Flame, 
-  Droplet, 
-  Compass, 
-  BarChart3, 
-  FileText, 
-  AlertTriangle, 
-  Building2, 
-  ShieldAlert,
-  Sparkles,
-  TrendingDown,
-  RefreshCw
-} from 'lucide-react';
-import { formatTemp } from './utils/thermalCalculators';
+
+const CITIES = [
+  { id: 'los_angeles',  name: 'Los Angeles, CA',  default_ambient_temp: 42.1 },
+  { id: 'palm_springs', name: 'Palm Springs, CA', default_ambient_temp: 47.8 },
+  { id: 'fresno',       name: 'Fresno, CA',        default_ambient_temp: 41.3 },
+  { id: 'sacramento',   name: 'Sacramento, CA',    default_ambient_temp: 39.7 },
+  { id: 'san_francisco',name: 'San Francisco, CA', default_ambient_temp: 29.4 },
+];
+
+let toastId = 0;
 
 export default function App() {
-  const [cities, setCities] = useState([]);
-  const [selectedCity, setSelectedCity] = useState(null);
-  const [persona, setPersona] = useState('planner'); // 'planner' | 'citizen'
-  const [activeTab, setActiveTab] = useState('map'); // 'map', 'hotspots', 'optimizer', 'analytics', 'safe-route', 'cooling-oasis', 'heat-health'
-  const [unit, setUnit] = useState('C'); // 'C' | 'F'
+  // ─── State ───
+  const [selectedCity,    setSelectedCity]    = useState(CITIES[0]);
+  const [persona,         setPersona]         = useState('planner');
+  const [activeTab,       setActiveTab]       = useState('map');
+  const [unit,            setUnit]            = useState('C');
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState(null);
 
-  // Data states
-  const [zones, setZones] = useState([]);
-  const [coolingStations, setCoolingStations] = useState([]);
+  // Data
+  const [zones,           setZones]           = useState([]);
+  const [hotspotData,     setHotspotData]     = useState(null);
+  const [stations,        setStations]        = useState([]);
   const [recommendations, setRecommendations] = useState([]);
-  const [hotspotData, setHotspotData] = useState(null);
-  const [weeklyData, setWeeklyData] = useState(null);
-  const [correlations, setCorrelations] = useState(null);
-  const [kpis, setKpis] = useState(null);
-  const [municipalReport, setMunicipalReport] = useState(null);
-  const [activeRoute, setActiveRoute] = useState(null);
-  const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [weeklyData,      setWeeklyData]      = useState(null);
+  const [correlations,    setCorrelations]    = useState(null);
+  const [kpis,            setKpis]            = useState(null);
+  const [activeRoute,     setActiveRoute]     = useState(null);
+  const [retryCount,      setRetryCount]      = useState(0);
 
-  // Modal states
-  const [isReportOpen, setIsReportOpen] = useState(false);
-  const [isCommunityModalOpen, setIsCommunityModalOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [deployTargetZone, setDeployTargetZone] = useState(null);
+  // UI
+  const [showReport,      setShowReport]      = useState(false);
+  const [showCommunity,   setShowCommunity]   = useState(false);
+  const [showSettings,    setShowSettings]    = useState(false);
+  const [deployTarget,    setDeployTarget]    = useState(null);
+  const [highlightStation,setHighlightStation]= useState(null);
+  const [toasts,          setToasts]          = useState([]);
 
-  // Load initial cities
-  useEffect(() => {
-    async function init() {
-      try {
-        const cityList = await api.getCities();
-        setCities(cityList);
-        if (cityList.length > 0) {
-          setSelectedCity(cityList[0]);
-        }
-        const sysSettings = await api.getSettings();
-        setSettings(sysSettings);
-      } catch (err) {
-        console.error('Initialization error:', err);
-      }
-    }
-    init();
+  // ─── Toast helpers ───
+  const addToast = useCallback((type, title, message, duration = 4000) => {
+    const id = ++toastId;
+    setToasts(prev => [...prev, { id, type, title, message, duration }]);
+  }, []);
+  const removeToast = useCallback(id => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // Fetch city-specific data whenever selectedCity changes
-  const fetchCityData = async (cityId) => {
-    if (!cityId) return;
+  // ─── Data Fetching ───
+  const fetchCityData = useCallback(async (cityId) => {
     setLoading(true);
+    setError(null);
     try {
       const [
-        zoneRes,
-        stationsRes,
-        recsRes,
-        hotspotsRes,
-        weeklyRes,
-        corrRes,
-        kpiRes,
-        repRes
+        zonesRes, hotspotRes, stationsRes, recsRes,
+        weeklyRes, corrRes, kpisRes
       ] = await Promise.all([
-        api.getPedestrianZones(cityId),
-        api.getCoolingStations(cityId),
-        api.getCoolingRecommendations(cityId),
-        api.getTopHotspots(cityId),
-        api.getWeeklyPatterns(cityId, 14),
-        api.getCorrelations(cityId),
-        api.getResilienceKPIs(cityId),
-        api.getMunicipalReport(cityId)
+        api.getZones(cityId),
+        api.getHotspots(cityId),
+        api.getStations(cityId),
+        api.getRecommendations(cityId),
+        api.getWeeklyPatterns(cityId).catch(() => null),
+        api.getCorrelations(cityId).catch(() => null),
+        api.getKpis(cityId).catch(() => null),
       ]);
-
-      setZones(zoneRes.zones || []);
-      setCoolingStations(stationsRes.stations || []);
-      setRecommendations(recsRes.recommendations || []);
-      setHotspotData(hotspotsRes || null);
+      setZones(zonesRes?.zones || []);
+      setHotspotData(hotspotRes || null);
+      setStations(stationsRes?.stations || []);
+      setRecommendations(recsRes?.recommendations || []);
       setWeeklyData(weeklyRes || null);
       setCorrelations(corrRes || null);
-      setKpis(kpiRes || null);
-      setMunicipalReport(repRes || null);
-
-      // Pre-compute sample safe route for navigation tab
-      if (zoneRes.zones && zoneRes.zones.length >= 2) {
-        const orig = zoneRes.zones[0];
-        const dest = zoneRes.zones[1];
-        const routeRes = await api.computeSafeRoute({
-          city_id: cityId,
-          origin: [orig.location.coordinates[1], orig.location.coordinates[0]],
-          destination: [dest.location.coordinates[1], dest.location.coordinates[0]],
-          preference: 'coolest_shaded'
-        });
-        setActiveRoute(routeRes);
-      }
+      setKpis(kpisRes || null);
+      setActiveRoute(null);
     } catch (err) {
-      console.error('Error fetching city telemetry:', err);
+      console.error('API error:', err);
+      setError('Could not reach the HeatShield backend. The server may be waking up (Render free tier — ~30s). Please retry.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (selectedCity) {
-      fetchCityData(selectedCity.id);
-    }
-  }, [selectedCity]);
+    fetchCityData(selectedCity.id);
+  }, [selectedCity, fetchCityData, retryCount]);
 
-  // Handle Deploy Action
-  const handleDeployStation = async (payload) => {
-    try {
-      const res = await api.deployStation(payload);
-      if (res.success) {
-        // Add new station to state & refresh
-        setCoolingStations(prev => [res.deployed_station, ...prev]);
-        // Re-fetch recommendations and zones
-        if (selectedCity) {
-          fetchCityData(selectedCity.id);
-        }
-      }
-      return res;
-    } catch (err) {
-      console.error('Deploy station error:', err);
-      return null;
-    }
+  // ─── Handlers ───
+  const handleSelectCity = (city) => {
+    setSelectedCity(city);
+    setActiveTab('map');
   };
 
-  // Safe route computation
-  const handleCalculateRoute = async (routeReq) => {
+  const handleSelectPersona = (p) => {
+    setPersona(p);
+    setActiveTab('map');
+  };
+
+  const handleCalculateRoute = async (params) => {
     try {
-      const res = await api.computeSafeRoute({
-        ...routeReq,
-        city_id: selectedCity?.id || 'los_angeles'
-      });
+      const res = await api.getSafeRoute(selectedCity.id, params);
       setActiveRoute(res);
-      setActiveTab('map'); // Switch to map to view polyline
-    } catch (err) {
-      console.error('Safe route error:', err);
+      setActiveTab('map');
+    } catch (e) {
+      addToast('error', 'Route Error', 'Could not calculate safe route. Try again.');
     }
   };
 
-  // Community Report submission
-  const handleSubmitCommunityReport = async (reportData) => {
+  const handleDeployStation = async (zone) => {
+    setDeployTarget(zone);
+  };
+
+  const handleConfirmDeploy = async (deployData) => {
     try {
-      return await api.submitCommunityReport(reportData);
-    } catch (err) {
-      console.error('Submit community report error:', err);
+      await api.deployStation(selectedCity.id, deployData);
+      const stationsRes = await api.getStations(selectedCity.id);
+      setStations(stationsRes?.stations || []);
+      addToast('success', 'Station Deployed!', `Cooling station successfully deployed at ${deployData.name || 'selected zone'}.`);
+      setDeployTarget(null);
+    } catch (e) {
+      addToast('error', 'Deploy Failed', 'Could not deploy station. Please try again.');
     }
   };
 
-  // Settings update
-  const handleSaveSettings = async (newSettings) => {
-    try {
-      const res = await api.updateSettings(newSettings);
-      setSettings(prev => ({ ...prev, ...newSettings }));
-      return res;
-    } catch (err) {
-      console.error('Save settings error:', err);
+  const handleNavigateToStation = (station) => {
+    setHighlightStation(station);
+    setActiveTab('map');
+  };
+
+  // ─── Tab badges (data counts) ───
+  const tabBadges = {
+    hotspots:  hotspotData?.top_5_percent_count || 0,
+    optimizer: recommendations.length || 0,
+    'cooling-oasis': stations.length || 0,
+  };
+
+  // ─── KPI helpers ───
+  const maxTemp    = hotspotData?.max_surface_temp || selectedCity.default_ambient_temp;
+  const watchlist  = hotspotData?.watchlist_35c   || [];
+  const hotspots   = hotspotData?.top_hotspots    || [];
+  const kpiData    = kpis || {};
+
+  // ─── Metric Banner ───
+  const metricBanner = (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {[
+        {
+          label: 'Max Surface Temp',
+          value: loading ? '—' : `${maxTemp?.toFixed(1)}\u00b0C`,
+          sub: 'FortyGuard live thermal',
+          color: 'text-red-400',
+          border: 'border-red-500/20',
+          bg: 'from-red-500/5',
+          pill: { text: 'EXTREME', cls: 'bg-red-500/20 text-red-300 border-red-500/40' },
+        },
+        {
+          label: 'Top 5% Hotspots',
+          value: loading ? '—' : (hotspotData?.top_5_percent_count ?? '—'),
+          sub: 'Pedestrian danger zones',
+          color: 'text-orange-400',
+          border: 'border-orange-500/20',
+          bg: 'from-orange-500/5',
+          pill: { text: 'CRITICAL', cls: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
+        },
+        {
+          label: '> 35\u00b0C Sectors',
+          value: loading ? '—' : (hotspotData?.watchlist_above_35_count ?? '—'),
+          sub: 'Watchlist active zones',
+          color: 'text-amber-400',
+          border: 'border-amber-500/20',
+          bg: 'from-amber-500/5',
+          pill: { text: 'WATCHLIST', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
+        },
+        {
+          label: 'Active Cooling Hubs',
+          value: loading ? '—' : stations.length,
+          sub: 'Deployed misting + pods',
+          color: 'text-cyan-400',
+          border: 'border-cyan-500/20',
+          bg: 'from-cyan-500/5',
+          pill: { text: 'LIVE', cls: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' },
+        },
+      ].map((m, i) => (
+        <div key={i} className={`bg-gradient-to-br ${m.bg} to-transparent bg-slate-900/90 border ${m.border} border-slate-800 rounded-xl p-3.5 transition-all hover:border-slate-600`}>
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <span className="text-[10px] font-data text-slate-400 uppercase tracking-wider">{m.label}</span>
+            <span className={`text-[9px] font-data font-bold px-1.5 py-0.5 rounded border ${m.pill.cls} shrink-0`}>{m.pill.text}</span>
+          </div>
+          <div className={`font-display text-2xl leading-none ${m.color} mb-1`}>{m.value}</div>
+          <div className="text-[10px] text-slate-500">{m.sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // ─── Error UI ───
+  const errorUI = (
+    <div className="flex flex-col items-center justify-center py-24 space-y-5">
+      <div className="text-6xl">🔄</div>
+      <div className="text-center max-w-md">
+        <h2 className="text-xl font-bold text-white mb-2">Backend Waking Up</h2>
+        <p className="text-slate-400 text-sm leading-relaxed">{error}</p>
+      </div>
+      <button
+        onClick={() => setRetryCount(c => c + 1)}
+        className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-orange-600/30"
+      >
+        Retry Now
+      </button>
+      <p className="text-slate-500 text-xs font-data">Render free tier sleeps after 15 min inactivity — first load takes ~30s</p>
+    </div>
+  );
+
+  // ─── Tab Content ───
+  const renderTabContent = () => {
+    if (loading) return <LoadingSkeleton />;
+    if (error)   return errorUI;
+
+    if (persona === 'planner') {
+      switch (activeTab) {
+        case 'map':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              {metricBanner}
+              <ThermalMap
+                zones={zones}
+                stations={stations}
+                activeRoute={activeRoute}
+                unit={unit}
+                highlightStation={highlightStation}
+              />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <HotspotList hotspots={hotspots} unit={unit} onDeployToZone={handleDeployStation} />
+                <WatchlistPanel watchlist={watchlist} unit={unit} />
+              </div>
+            </div>
+          );
+        case 'hotspots':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              {metricBanner}
+              <HotspotList hotspots={hotspots} unit={unit} onDeployToZone={handleDeployStation} />
+              <WatchlistPanel watchlist={watchlist} unit={unit} />
+            </div>
+          );
+        case 'optimizer':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              {metricBanner}
+              <StationOptimizer
+                recommendations={recommendations}
+                activeStations={stations}
+                unit={unit}
+                onDeployRecommendation={handleDeployStation}
+              />
+            </div>
+          );
+        case 'analytics':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              <ResilientCityMetrics kpis={kpiData} unit={unit} />
+              {weeklyData  && <WeeklyPatternChart weeklyData={weeklyData} unit={unit} />}
+              {correlations && <CorrelationChart correlations={correlations} />}
+            </div>
+          );
+        default: return null;
+      }
+    } else {
+      // Citizen persona
+      switch (activeTab) {
+        case 'map':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              {metricBanner}
+              <ThermalMap
+                zones={zones}
+                stations={stations}
+                activeRoute={activeRoute}
+                unit={unit}
+                highlightStation={highlightStation}
+              />
+            </div>
+          );
+        case 'safe-route':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              <SafeRoutePlanner
+                zones={zones}
+                onCalculateRoute={handleCalculateRoute}
+                activeRoute={activeRoute}
+                unit={unit}
+              />
+              {activeRoute && (
+                <ThermalMap
+                  zones={zones}
+                  stations={stations}
+                  activeRoute={activeRoute}
+                  unit={unit}
+                />
+              )}
+            </div>
+          );
+        case 'cooling-oasis':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              <CoolingOasisList
+                stations={stations}
+                unit={unit}
+                onNavigateToStation={handleNavigateToStation}
+              />
+            </div>
+          );
+        case 'heat-health':
+          return (
+            <div className="space-y-5 animate-fade-slide">
+              <HeatHealthCard
+                zones={zones}
+                unit={unit}
+              />
+            </div>
+          );
+        default: return null;
+      }
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Navbar */}
       <Navbar
-        cities={cities}
+        cities={CITIES}
         selectedCity={selectedCity}
-        onSelectCity={setSelectedCity}
+        onSelectCity={handleSelectCity}
         persona={persona}
-        onSelectPersona={(p) => {
-          setPersona(p);
-          setActiveTab('map');
-        }}
+        onSelectPersona={handleSelectPersona}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         unit={unit}
         onToggleUnit={() => setUnit(u => u === 'C' ? 'F' : 'C')}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenReport={() => setIsReportOpen(true)}
-        onOpenCommunityModal={() => setIsCommunityModalOpen(true)}
-        kpis={kpis}
+        onOpenSettings={() => setShowSettings(true)}
+        onOpenReport={() => setShowReport(true)}
+        onOpenCommunityModal={() => setShowCommunity(true)}
+        kpis={kpiData}
+        tabBadges={tabBadges}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* City Summary Metric Banner */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-lg">
-            <span className="text-[11px] text-slate-400 font-medium">Urban Target Zone</span>
-            <div className="text-base font-bold text-white mt-0.5 truncate">
-              {selectedCity?.name || 'California Urban Region'}
-            </div>
-            <span className="text-[10px] text-slate-500 font-mono">California &bull; FortyGuard Microclimate</span>
-          </div>
-
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-lg">
-            <span className="text-[11px] text-slate-400 font-medium">Top 5% Extreme Hotspots</span>
-            <div className="text-base font-bold text-red-400 mt-0.5 flex items-center gap-1.5 font-mono">
-              <Flame className="w-4 h-4 text-red-500 animate-pulse" />
-              {hotspotData?.top_5_percent_count || 2} Priority Clusters
-            </div>
-            <span className="text-[10px] text-red-400/80 font-mono">Max Surface: {formatTemp(hotspotData?.max_surface_temp, unit)}</span>
-          </div>
-
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-lg">
-            <span className="text-[11px] text-slate-400 font-medium">Watchlist Nodes (&gt;35°C)</span>
-            <div className="text-base font-bold text-amber-400 mt-0.5 font-mono">
-              {hotspotData?.watchlist_above_35_count || 8} Sectors Monitored
-            </div>
-            <span className="text-[10px] text-amber-400/80 font-mono">Proactive Intervention</span>
-          </div>
-
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-lg">
-            <span className="text-[11px] text-slate-400 font-medium">Cooling Hubs Deployed</span>
-            <div className="text-base font-bold text-cyan-400 mt-0.5 flex items-center gap-1.5 font-mono">
-              <Droplet className="w-4 h-4 text-cyan-400" />
-              {coolingStations.length} Active Oases
-            </div>
-            <span className="text-[10px] text-cyan-400/80 font-mono">Avg -4.8°C Relief</span>
-          </div>
-        </div>
-
-        {/* Tab View Routing */}
-        {activeTab === 'map' && (
-          <div className="space-y-6">
-            {/* Interactive Leaflet Thermal Map */}
-            <ThermalMap
-              selectedCity={selectedCity}
-              zones={zones}
-              coolingStations={coolingStations}
-              topHotspots={hotspotData?.top_hotspots || []}
-              activeRoute={activeRoute}
-              persona={persona}
-              unit={unit}
-              onDeployClick={(zone) => setDeployTargetZone(zone)}
-              onSetRouteDestination={(zone) => {
-                if (zones.length > 0) {
-                  handleCalculateRoute({
-                    origin: [zones[0].location.coordinates[1], zones[0].location.coordinates[0]],
-                    destination: [zone.location.coordinates[1], zone.location.coordinates[0]],
-                    preference: 'coolest_shaded'
-                  });
-                }
-              }}
-            />
-
-            {/* Quick Context Panel below map */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {persona === 'planner' ? (
-                <>
-                  <HotspotList
-                    hotspots={hotspotData?.top_hotspots || []}
-                    watchlistCount={hotspotData?.watchlist_above_35_count || 0}
-                    unit={unit}
-                    onDeployClick={(zone) => setDeployTargetZone(zone)}
-                  />
-                  <WatchlistPanel
-                    watchlist={hotspotData?.watchlist_35c || []}
-                    unit={unit}
-                  />
-                </>
-              ) : (
-                <>
-                  <SafeRoutePlanner
-                    zones={zones}
-                    onCalculateRoute={handleCalculateRoute}
-                    activeRoute={activeRoute}
-                    unit={unit}
-                  />
-                  <HeatHealthCard
-                    ambientTemp={selectedCity?.default_ambient_temp || 38.5}
-                    wbgtTemp={zones[0]?.wbgt_temp || 31.2}
-                    unit={unit}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Planner Tabs */}
-        {activeTab === 'hotspots' && (
-          <div className="space-y-6">
-            <HotspotList
-              hotspots={hotspotData?.top_hotspots || []}
-              watchlistCount={hotspotData?.watchlist_above_35_count || 0}
-              unit={unit}
-              onDeployClick={(zone) => setDeployTargetZone(zone)}
-            />
-            <WatchlistPanel
-              watchlist={hotspotData?.watchlist_35c || []}
-              unit={unit}
-            />
-          </div>
-        )}
-
-        {activeTab === 'optimizer' && (
-          <StationOptimizer
-            recommendations={recommendations}
-            activeStations={coolingStations}
-            unit={unit}
-            onDeployRecommendation={(rec) => {
-              const matchingZone = zones.find(z => z.id === rec.zone_id) || {
-                id: rec.zone_id,
-                name: rec.name,
-                location: rec.location,
-                current_surface_temp: 42.0,
-                footfall_hourly: 2500,
-                shade_coverage_pct: 15
-              };
-              setDeployTargetZone(matchingZone);
-            }}
-          />
-        )}
-
-        {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            {/* 3 Pillars Executive Metrics */}
-            <ResilientCityMetrics kpis={kpis} unit={unit} />
-
-            {/* Weekly Temporal Signatures */}
-            <WeeklyPatternChart weeklyData={weeklyData} unit={unit} />
-
-            {/* Quantitative Correlations Matrix */}
-            <CorrelationChart correlations={correlations} />
-          </div>
-        )}
-
-        {/* Citizen Tabs */}
-        {activeTab === 'safe-route' && (
-          <div className="space-y-6">
-            <SafeRoutePlanner
-              zones={zones}
-              onCalculateRoute={handleCalculateRoute}
-              activeRoute={activeRoute}
-              unit={unit}
-            />
-            {/* Embedded Map Preview for route */}
-            <ThermalMap
-              selectedCity={selectedCity}
-              zones={zones}
-              coolingStations={coolingStations}
-              topHotspots={hotspotData?.top_hotspots || []}
-              activeRoute={activeRoute}
-              persona={persona}
-              unit={unit}
-            />
-          </div>
-        )}
-
-        {activeTab === 'cooling-oasis' && (
-          <CoolingOasisList
-            stations={coolingStations}
-            unit={unit}
-            onNavigateToStation={(station) => {
-              setActiveTab('map');
-            }}
-          />
-        )}
-
-        {activeTab === 'heat-health' && (
-          <div className="space-y-6">
-            <HeatHealthCard
-              ambientTemp={selectedCity?.default_ambient_temp || 38.5}
-              wbgtTemp={zones[0]?.wbgt_temp || 31.2}
-              unit={unit}
-            />
-            <CorrelationChart correlations={correlations} />
-          </div>
-        )}
+      {/* Main content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {renderTabContent()}
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-950 border-t border-slate-900 py-6 text-xs text-slate-500 text-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-400">FortyGuard HeatShield</span>
-            <span>&bull;</span>
-            <span>California Urban Pedestrian Resilience Platform</span>
-          </div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <span>Pillar 1: Resilient Cities</span>
-            <span>&bull;</span>
-            <span>Pillar 2: Government &amp; Environment</span>
-            <span>&bull;</span>
-            <span>Pillar 3: Data Analysis</span>
+      <footer className="border-t border-slate-800 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-base tracking-widest bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">HeatShield</span>
+              <span className="text-[10px] font-data text-slate-500">v1.0 — FortyGuard Hackathon 2026</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {[
+                { emoji: '🏙️', label: 'Pillar 1', sub: 'Extreme Heat Crisis', color: 'border-orange-500/30 text-orange-300' },
+                { emoji: '💧', label: 'Pillar 2', sub: 'Cooling Deployment', color: 'border-cyan-500/30 text-cyan-300' },
+                { emoji: '📊', label: 'Pillar 3', sub: 'Data Correlation', color: 'border-purple-500/30 text-purple-300' },
+              ].map(p => (
+                <span key={p.label} className={`flex items-center gap-1.5 text-[10px] font-data px-2.5 py-1 bg-slate-900 border ${p.color} rounded-full`}>
+                  <span>{p.emoji}</span>
+                  <span className="font-bold">{p.label}</span>
+                  <span className="text-slate-500">{p.sub}</span>
+                </span>
+              ))}
+            </div>
+            <div className="text-[10px] font-data text-slate-500">
+              FortyGuard API · OpenStreetMap · California, USA
+            </div>
           </div>
         </div>
       </footer>
 
       {/* Modals */}
-      <MunicipalReportModal
-        report={municipalReport}
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        unit={unit}
-      />
-
-      <DeployModal
-        targetZone={deployTargetZone}
-        isOpen={Boolean(deployTargetZone)}
-        onClose={() => setDeployTargetZone(null)}
-        onConfirmDeploy={handleDeployStation}
-        cityId={selectedCity?.id || 'los_angeles'}
-        unit={unit}
-      />
-
-      <CommunityReportModal
-        isOpen={isCommunityModalOpen}
-        onClose={() => setIsCommunityModalOpen(false)}
-        onSubmitReport={handleSubmitCommunityReport}
-        cityId={selectedCity?.id || 'los_angeles'}
-      />
-
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSaveSettings={handleSaveSettings}
-      />
+      {showReport   && <MunicipalReportModal hotspots={hotspots} watchlist={watchlist} stations={stations} city={selectedCity} unit={unit} onClose={() => setShowReport(false)} />}
+      {showCommunity && <CommunityReportModal city={selectedCity} onClose={() => setShowCommunity(false)} onSubmit={() => { addToast('success', 'Report Submitted', 'Your hazard report has been recorded. Thank you!'); setShowCommunity(false); }} />}
+      {showSettings  && <SettingsModal unit={unit} onToggleUnit={() => setUnit(u => u === 'C' ? 'F' : 'C')} onClose={() => setShowSettings(false)} />}
+      {deployTarget  && <DeployModal zone={deployTarget} city={selectedCity} onClose={() => setDeployTarget(null)} onConfirm={handleConfirmDeploy} />}
     </div>
   );
 }
