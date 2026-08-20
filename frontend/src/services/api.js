@@ -1,4 +1,7 @@
-const API_BASE = '/api';
+// In production (Render/Vercel), VITE_API_URL is set to the backend URL.
+// In development (Vite proxy), falls back to '/api'.
+const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api');
+
 
 export const api = {
   // Cities
