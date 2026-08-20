@@ -3,12 +3,13 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
-  # ── Backend: FastAPI (Docker Web Service) ──────────────────────────────────
+  # ── Backend: FastAPI (Native Python — no Docker, free tier friendly) ─────────
   - type: web
     name: heatshield-api
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    rootDir: ./backend
     plan: free
     healthCheckPath: /api/health
     envVars:
@@ -20,10 +21,10 @@ services:
         sync: false
       - key: DB_NAME
         value: heatshield_california
-      - key: PORT
-        value: "8000"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
 
-  # ── Frontend: React (Static Site — always free, no plan field) ────────────
+  # ── Frontend: React Static Site (always free, no plan field needed) ──────────
   - type: web
     name: heatshield-frontend
     runtime: static
