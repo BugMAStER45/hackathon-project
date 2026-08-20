@@ -1,4 +1,5 @@
-// In production (Render), VITE_API_URL is set to the backend URL.
+// In production (Render), VITE_API_URL env var is set to the backend URL.
+// Backend lives at: https://heatshield-backend.onrender.com
 // In development (Vite proxy), falls back to '/api'.
 const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api');
 

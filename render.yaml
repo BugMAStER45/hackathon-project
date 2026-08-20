@@ -3,9 +3,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
-  # ── Backend: FastAPI (Native Python — no Docker, free tier friendly) ─────────
+  # ── Backend: FastAPI (Native Python — free tier) ─────────────────────────────
   - type: web
-    name: heatshield-api
+    name: heatshield-backend
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -24,7 +24,7 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.0"
 
-  # ── Frontend: React Static Site (always free, no plan field needed) ──────────
+  # ── Frontend: React Static Site ───────────────────────────────────────────────
   - type: web
     name: heatshield-frontend
     runtime: static
@@ -37,4 +37,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://heatshield-api.onrender.com
+        value: https://heatshield-backend.onrender.com
