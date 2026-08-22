@@ -64,23 +64,21 @@ FastAPI Backend (Python 3.11, Uvicorn)
 
 ---
 
-## ⚡ Local Development
+## ⚡ Local Development (Run on your laptop)
 
 ```bash
-# Clone
+# Clone the repository
 git clone https://github.com/BugMAStER45/hackathon-project.git
 cd hackathon-project
 
-# Configure env
-cp .env.example .env
-# Edit .env and set FORTYGUARD_API_KEY
-
-# One-command start (installs everything automatically)
-./run_app.sh
+# Run the local start script
+./run_local.sh
 ```
 
-- **Frontend**: http://localhost:5173
-- **API Docs**: http://localhost:8000/docs
+- **Frontend UI**: http://127.0.0.1:5173
+- **Backend Docs**: http://127.0.0.1:8000/docs
+
+*Note: The script automatically handles starting both the backend and frontend at the same time, and loads your local FortyGuard API keys.*
 
 ---
 
