@@ -11,33 +11,91 @@ const Leaf = ({ cx, cy, baseRot, delayClass, color1="#00e676", color2="#69f0ae",
   </g>
 );
 
-const TreeBranch = ({ flip }) => (
-  <svg 
-    viewBox="0 0 350 250" 
-    className={`absolute top-0 ${flip ? 'right-0 scale-x-[-1]' : 'left-0'} w-72 lg:w-96 h-auto z-20 pointer-events-none`} 
-    style={{ filter: 'drop-shadow(0 15px 15px rgba(0,0,0,0.5))' }}
-  >
-    <path d="M0,0 Q120,40 280,70" fill="none" stroke="#2d1b14" strokeWidth="16" strokeLinecap="round" />
-    <path d="M40,10 Q140,90 220,160" fill="none" stroke="#2d1b14" strokeWidth="10" strokeLinecap="round" />
-    <path d="M150,50 Q220,90 270,120" fill="none" stroke="#2d1b14" strokeWidth="8" strokeLinecap="round" />
-    
-    <Leaf cx={50} cy={15} baseRot={-40} delayClass="animate-rustle-1" />
-    <Leaf cx={90} cy={30} baseRot={45} delayClass="animate-rustle-2" color1="#00c853" color2="#b9f6ca" scale={1.2} />
-    <Leaf cx={140} cy={45} baseRot={-20} delayClass="animate-rustle-1" />
-    <Leaf cx={190} cy={55} baseRot={60} delayClass="animate-rustle-2" scale={0.9}/>
-    <Leaf cx={240} cy={65} baseRot={-30} delayClass="animate-rustle-1" color1="#00c853" />
-    <Leaf cx={275} cy={70} baseRot={20} delayClass="animate-rustle-2" scale={0.8}/>
-
-    <Leaf cx={80} cy={45} baseRot={20} delayClass="animate-rustle-2" scale={0.9}/>
-    <Leaf cx={130} cy={80} baseRot={75} delayClass="animate-rustle-1" color1="#00c853"/>
-    <Leaf cx={170} cy={120} baseRot={35} delayClass="animate-rustle-2" />
-    <Leaf cx={215} cy={155} baseRot={80} delayClass="animate-rustle-1" scale={0.8}/>
-
-    <Leaf cx={180} cy={65} baseRot={-10} delayClass="animate-rustle-1" scale={1.1}/>
-    <Leaf cx={230} cy={95} baseRot={40} delayClass="animate-rustle-2" color1="#00c853"/>
-    <Leaf cx={265} cy={115} baseRot={-15} delayClass="animate-rustle-1" scale={0.9}/>
-  </svg>
+const Flower = ({ cx, cy, scale=1, delayClass }) => (
+  <g transform={`translate(${cx}, ${cy}) scale(${scale})`}>
+    <g className={delayClass} style={{ transformOrigin: '0px 0px' }}>
+       <circle cx="-5" cy="-5" r="7" fill="#ffb6c1" />
+       <circle cx="5" cy="-5" r="7" fill="#ff99cc" />
+       <circle cx="-6" cy="5" r="7" fill="#ff69b4" />
+       <circle cx="6" cy="5" r="7" fill="#ffb6c1" />
+       <circle cx="0" cy="8" r="7" fill="#ff99cc" />
+       <circle cx="0" cy="0" r="3" fill="#ff1493" />
+       <circle cx="0" cy="0" r="1.5" fill="#fff" />
+    </g>
+  </g>
 );
+
+const TreeBranch = ({ flip }) => (
+  <div className={`absolute top-0 ${flip ? 'right-0 scale-x-[-1] animate-branch-swing-right' : 'left-0 animate-branch-swing'} w-72 lg:w-[450px] h-auto z-20 pointer-events-none`}>
+    <svg 
+      viewBox="0 0 350 250" 
+      className="w-full h-auto"
+      style={{ filter: 'drop-shadow(0 15px 15px rgba(0,0,0,0.5))' }}
+    >
+      <path d="M0,0 Q120,40 280,70" fill="none" stroke="#2d1b14" strokeWidth="16" strokeLinecap="round" />
+      <path d="M40,10 Q140,90 220,160" fill="none" stroke="#2d1b14" strokeWidth="10" strokeLinecap="round" />
+      <path d="M150,50 Q220,90 270,120" fill="none" stroke="#2d1b14" strokeWidth="8" strokeLinecap="round" />
+      
+      {/* Dense Canopy Leaves */}
+      <Leaf cx={20} cy={5} baseRot={-50} delayClass="animate-rustle-1" scale={1.1} />
+      <Leaf cx={50} cy={15} baseRot={-40} delayClass="animate-rustle-1" />
+      <Leaf cx={70} cy={20} baseRot={25} delayClass="animate-rustle-2" color1="#00c853" scale={1.3} />
+      <Leaf cx={90} cy={30} baseRot={45} delayClass="animate-rustle-2" color1="#00c853" color2="#b9f6ca" scale={1.2} />
+      <Leaf cx={110} cy={35} baseRot={-15} delayClass="animate-rustle-1" scale={0.9} />
+      <Leaf cx={140} cy={45} baseRot={-20} delayClass="animate-rustle-1" />
+      <Leaf cx={165} cy={50} baseRot={30} delayClass="animate-rustle-2" color1="#00c853" scale={1.1} />
+      <Leaf cx={190} cy={55} baseRot={60} delayClass="animate-rustle-2" scale={0.9}/>
+      <Leaf cx={215} cy={60} baseRot={-25} delayClass="animate-rustle-1" scale={1.2} />
+      <Leaf cx={240} cy={65} baseRot={-30} delayClass="animate-rustle-1" color1="#00c853" />
+      <Leaf cx={260} cy={68} baseRot={45} delayClass="animate-rustle-2" scale={1.1} />
+      <Leaf cx={275} cy={70} baseRot={20} delayClass="animate-rustle-2" scale={0.8}/>
+
+      {/* Lower Branch Leaves */}
+      <Leaf cx={60} cy={30} baseRot={10} delayClass="animate-rustle-1" scale={1.1}/>
+      <Leaf cx={80} cy={45} baseRot={20} delayClass="animate-rustle-2" scale={0.9}/>
+      <Leaf cx={105} cy={65} baseRot={45} delayClass="animate-rustle-1" scale={1.2}/>
+      <Leaf cx={130} cy={80} baseRot={75} delayClass="animate-rustle-1" color1="#00c853"/>
+      <Leaf cx={150} cy={100} baseRot={25} delayClass="animate-rustle-2" scale={1.1}/>
+      <Leaf cx={170} cy={120} baseRot={35} delayClass="animate-rustle-2" />
+      <Leaf cx={195} cy={140} baseRot={60} delayClass="animate-rustle-1" color1="#00c853" scale={0.9}/>
+      <Leaf cx={215} cy={155} baseRot={80} delayClass="animate-rustle-1" scale={0.8}/>
+
+      {/* Middle Branch Leaves */}
+      <Leaf cx={165} cy={55} baseRot={-40} delayClass="animate-rustle-2" scale={0.9}/>
+      <Leaf cx={180} cy={65} baseRot={-10} delayClass="animate-rustle-1" scale={1.1}/>
+      <Leaf cx={205} cy={80} baseRot={15} delayClass="animate-rustle-2" scale={1.2}/>
+      <Leaf cx={230} cy={95} baseRot={40} delayClass="animate-rustle-2" color1="#00c853"/>
+      <Leaf cx={250} cy={105} baseRot={-25} delayClass="animate-rustle-1" scale={1.1}/>
+      <Leaf cx={265} cy={115} baseRot={-15} delayClass="animate-rustle-1" scale={0.9}/>
+
+      {/* Pink Sakura Flowers scattered */}
+      <Flower cx={120} cy={35} scale={1.2} delayClass="animate-rustle-2" />
+      <Flower cx={180} cy={60} scale={1.4} delayClass="animate-rustle-1" />
+      <Flower cx={230} cy={65} scale={1} delayClass="animate-rustle-2" />
+      <Flower cx={80} cy={55} scale={1.3} delayClass="animate-rustle-1" />
+      <Flower cx={160} cy={110} scale={1.1} delayClass="animate-rustle-2" />
+      <Flower cx={250} cy={120} scale={0.9} delayClass="animate-rustle-1" />
+      <Flower cx={210} cy={145} scale={1} delayClass="animate-rustle-2" />
+      <Flower cx={50} cy={25} scale={1} delayClass="animate-rustle-1" />
+    </svg>
+  </div>
+);
+
+const FallingPetal = ({ left, right, delay, duration="4s" }) => {
+  const style = { animationDelay: delay, animationDuration: duration };
+  const baseClass = left !== undefined ? "falling-leaf animate-[leafFall]" : "falling-leaf animate-[leafFallRight]";
+  return (
+    <svg 
+      className={baseClass} 
+      style={{ ...style, left: left, right: right, top: '40px', filter: 'drop-shadow(0 5px 5px rgba(255,105,180,0.4))' }}
+      viewBox="0 0 20 20"
+    >
+      {/* Single Petal Shape */}
+      <path d="M10,20 C-5,10 5,0 10,0 C15,0 25,10 10,20 Z" fill="#ffb6c1" opacity="0.9" />
+    </svg>
+  )
+}
+/* ─────────────────────────────────────── */
 
 function AnimatedThermalCore() {
   return (
@@ -87,6 +145,17 @@ export default function LandingPage({ onEnter }) {
       <div className="absolute top-32 left-0 w-96 wind-line" style={{ animationDelay: '0.4s', height: '3px' }} />
       <div className="absolute top-10 left-0 w-48 wind-line" style={{ animationDelay: '0.3s' }} />
       <div className="absolute top-52 left-0 w-72 wind-line" style={{ animationDelay: '0.6s' }} />
+
+      {/* Falling Sakura Petals */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-30">
+         <FallingPetal left="10%" delay="0.8s" duration="4.5s" />
+         <FallingPetal left="22%" delay="1.4s" duration="5.2s" />
+         <FallingPetal left="8%" delay="2.1s" duration="4.8s" />
+
+         <FallingPetal right="15%" delay="0.5s" duration="4.2s" />
+         <FallingPetal right="28%" delay="1.8s" duration="5.5s" />
+         <FallingPetal right="10%" delay="2.6s" duration="4.6s" />
+      </div>
 
       {/* Anime Tree Branches (Top Left & Top Right) */}
       <TreeBranch />
