@@ -6,14 +6,16 @@ import HeatLegend from './HeatLegend';
 import MapControls from './MapControls';
 
 const TILE_URLS = {
-  dark:      'https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png',
+  // Using OSM for everything since it is 100% reliable and never blocked by adblockers.
+  // We use CSS inversion for the dark mode.
+  dark:      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  streets:   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  streets:   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
 };
 const TILE_ATTR = {
-  dark:      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-  satellite: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-  streets:   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  dark:      '&copy; OpenStreetMap contributors',
+  satellite: '&copy; Esri',
+  streets:   '&copy; OpenStreetMap contributors',
 };
 
 function FlyTo({ center, zoom }) {
@@ -31,7 +33,7 @@ function TileLayerSwitcher({ baseMap }) {
       url={TILE_URLS[baseMap] || TILE_URLS.dark}
       attribution={TILE_ATTR[baseMap] || TILE_ATTR.dark}
       maxZoom={19}
-      subdomains={baseMap === 'satellite' ? '' : 'abcd'}
+      className={baseMap === 'dark' ? 'dark-map-filter' : ''}
     />
   );
 }
@@ -79,11 +81,11 @@ export default function ThermalMap({
   }
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl" style={{ height: '600px', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl" style={{ height: '600px', border: '1px solid rgba(255,255,255,0.08)', zIndex: 10 }}>
       <MapContainer
         center={defaultCenter}
         zoom={13}
-        className="w-full h-full"
+        style={{ width: '100%', height: '100%', background: '#060610' }}
         zoomControl={true}
       >
         <TileLayerSwitcher baseMap={baseMap} />
@@ -95,14 +97,12 @@ export default function ThermalMap({
           const ring  = getTempRing(temp);
           const [lng, lat] = zone.location?.coordinates || [0, 0];
           return (
-            <React.Fragment key={zone.zone_id}>
-              {/* Outer pulse ring */}
+            <React.Fragment key={zone.zone_id || zone.id || Math.random()}>
               <CircleMarker
                 center={[lat, lng]}
                 radius={ring.r + 6}
                 pathOptions={{ color: ring.color, fillColor: ring.fill, fillOpacity: 0.35, weight: 0 }}
               />
-              {/* Main dot */}
               <CircleMarker
                 center={[lat, lng]}
                 radius={ring.r}
@@ -114,12 +114,7 @@ export default function ThermalMap({
                     <p style={{ fontFamily: 'Bebas Neue,sans-serif', fontSize: '18px', color: ring.color, letterSpacing: '2px', marginBottom: '6px' }}>
                       {formatTemp(temp, unit)}
                     </p>
-                    <p style={{ fontSize: '11px', color: '#e4e4f0', fontWeight: 600 }}>{zone.zone_name}</p>
-                    {zone.pedestrian_density && (
-                      <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '9px', color: '#7070a0', marginTop: '4px' }}>
-                        Density: {zone.pedestrian_density}
-                      </p>
-                    )}
+                    <p style={{ fontSize: '11px', color: '#e4e4f0', fontWeight: 600 }}>{zone.zone_name || zone.name}</p>
                   </div>
                 </Popup>
               </CircleMarker>
@@ -132,7 +127,7 @@ export default function ThermalMap({
           const [lng, lat] = station.location?.coordinates || [0, 0];
           return (
             <CircleMarker
-              key={station.station_id}
+              key={station.station_id || Math.random()}
               center={[lat, lng]}
               radius={10}
               pathOptions={{ color: '#00D4FF', fillColor: '#00D4FF', fillOpacity: 0.8, weight: 2 }}
@@ -141,10 +136,6 @@ export default function ThermalMap({
                 <div style={{ padding: '10px 14px', minWidth: '180px' }}>
                   <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '8px', letterSpacing: '2px', color: '#00D4FF', marginBottom: '4px' }}>COOLING STATION</p>
                   <p style={{ fontFamily: 'Bebas Neue,sans-serif', fontSize: '16px', color: '#e4e4f0', letterSpacing: '2px', marginBottom: '4px' }}>{station.name}</p>
-                  <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '9px', color: '#00FF88' }}>● {station.status?.toUpperCase() || 'ACTIVE'}</p>
-                  {station.capacity && (
-                    <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '9px', color: '#7070a0', marginTop: '3px' }}>Cap: {station.capacity}</p>
-                  )}
                 </div>
               </Popup>
             </CircleMarker>
