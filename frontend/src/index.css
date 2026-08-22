@@ -184,3 +184,14 @@ body::before {
   color: transparent;
   animation: aurora 6s ease infinite;
 }
+
+/* ── SATELLITE RADAR SCAN ANIMATION ── */
+@keyframes radarScan {
+  0%   { transform: translateY(-10px); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(180px); opacity: 0; }
+}
+.animate-radar-scan {
+  animation: radarScan 2.5s ease-in-out infinite;
+}
