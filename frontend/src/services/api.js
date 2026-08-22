@@ -15,7 +15,8 @@ export const api = {
 
   getHotspots: async (cityId = 'los_angeles') => {
     const data = await fetcher(`${API_BASE}/heat/hotspots?city_id=${cityId}`);
-    return data.hotspots || [];
+    // Backend uses top_hotspots, fallback to hotspots if it changes
+    return data.top_hotspots || data.hotspots || [];
   },
   getWatchlist: async (cityId = 'los_angeles') => {
     const data = await fetcher(`${API_BASE}/heat/watchlist?city_id=${cityId}`);
@@ -24,7 +25,6 @@ export const api = {
 
   getStations: async (cityId = 'los_angeles') => {
     const data = await fetcher(`${API_BASE}/cooling/stations?city_id=${cityId}`);
-    // Handle both cases: if backend returns array, or {stations: []}
     return Array.isArray(data) ? data : (data.stations || []);
   },
   getRecommendations: async (cityId = 'los_angeles') => {
@@ -42,8 +42,18 @@ export const api = {
     fetcher(`${API_BASE}/analytics/weekly-patterns?city_id=${cityId}&days=${days}`),
   getCorrelations: (cityId = 'los_angeles') =>
     fetcher(`${API_BASE}/analytics/correlations?city_id=${cityId}`),
-  getKpis: (cityId = 'los_angeles') =>
-    fetcher(`${API_BASE}/analytics/kpis?city_id=${cityId}`),
+    
+  getKpis: async (cityId = 'los_angeles') => {
+    const data = await fetcher(`${API_BASE}/analytics/kpis?city_id=${cityId}`);
+    // Map nested fields to root so the frontend metric banners can read them directly
+    if (data.resilient_cities_infrastructure) {
+       data.resilience_score = data.resilient_cities_infrastructure.urban_resilience_index;
+    }
+    if (data.data_analysis_correlation) {
+       data.avg_surface_temp = data.data_analysis_correlation.city_average_surface_temp_c;
+    }
+    return data;
+  },
 
   getSafeRoute: (cityId, params) =>
     fetcher(`${API_BASE}/navigation/safe-route`, {
