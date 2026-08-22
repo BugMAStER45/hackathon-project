@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { formatTemp, getTempColor } from '../../utils/thermalCalculators';
@@ -6,26 +6,32 @@ import HeatLegend from './HeatLegend';
 import MapControls from './MapControls';
 
 const TILE_URLS = {
-  dark:    'https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png',
+  dark:      'https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png',
   satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  streets: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  streets:   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 };
-const TILE_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>';
+const TILE_ATTR = {
+  dark:      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  satellite: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+  streets:   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+};
 
 function FlyTo({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
     if (center) map.flyTo(center, zoom || 13, { animate: true, duration: 1.2 });
-  }, [center, zoom]);
+  }, [center, zoom, map]);
   return null;
 }
 
 function TileLayerSwitcher({ baseMap }) {
   return (
     <TileLayer
+      key={baseMap}
       url={TILE_URLS[baseMap] || TILE_URLS.dark}
-      attribution={TILE_ATTR}
+      attribution={TILE_ATTR[baseMap] || TILE_ATTR.dark}
       maxZoom={19}
+      subdomains={baseMap === 'satellite' ? '' : 'abcd'}
     />
   );
 }
@@ -37,12 +43,11 @@ export default function ThermalMap({
   unit,
   highlightStation,
 }) {
-  const [layers, setLayers] = useState({ heatGrid: true, coolingStations: true, safeRoute: true });
+  const [layers,     setLayers]     = useState({ heatGrid: true, coolingStations: true, safeRoute: true });
   const [tempFilter, setTempFilter] = useState('all');
-  const [baseMap, setBaseMap] = useState('dark');
-  const [flyTarget, setFlyTarget] = useState(null);
+  const [baseMap,    setBaseMap]    = useState('dark');
+  const [flyTarget,  setFlyTarget]  = useState(null);
 
-  // Expose fly-to for external triggers (navigate button)
   useEffect(() => {
     if (highlightStation) {
       const [lng, lat] = highlightStation.location?.coordinates || [];
@@ -66,86 +71,55 @@ export default function ThermalMap({
     Array.isArray(wp) ? wp : [wp.lat, wp.lng]
   ) || [];
 
+  function getTempRing(temp) {
+    if (temp >= 43) return { color: '#FF2D55', fill: 'rgba(255,45,85,0.18)',  r: 18 };
+    if (temp >= 40) return { color: '#FF6B35', fill: 'rgba(255,107,53,0.16)', r: 16 };
+    if (temp >= 37) return { color: '#FFD700', fill: 'rgba(255,215,0,0.14)',  r: 14 };
+    return           { color: '#00D4FF', fill: 'rgba(0,212,255,0.12)',  r: 12 };
+  }
+
   return (
-    <div className="relative w-full h-[600px] lg:h-[680px] rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+    <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl" style={{ height: '600px', border: '1px solid rgba(255,255,255,0.08)' }}>
       <MapContainer
         center={defaultCenter}
-        zoom={12}
+        zoom={13}
         className="w-full h-full"
         zoomControl={true}
-        style={{ background: '#060b14' }}
       >
         <TileLayerSwitcher baseMap={baseMap} />
         {flyTarget && <FlyTo center={flyTarget.center} zoom={flyTarget.zoom} />}
 
-        {/* Thermal zone nodes */}
-        {layers.heatGrid && filteredZones.map(zone => {
-          const lat  = zone.location.coordinates[1];
-          const lng  = zone.location.coordinates[0];
-          const temp = zone.current_surface_temp;
-          const isTop5 = zone.is_top_5_percent;
-          const color = getTempColor(temp);
-
+        {/* Heat Zone Markers */}
+        {layers.heatGrid && filteredZones.map((zone) => {
+          const temp  = zone.current_surface_temp || 0;
+          const ring  = getTempRing(temp);
+          const [lng, lat] = zone.location?.coordinates || [0, 0];
           return (
-            <React.Fragment key={zone.id}>
-              {/* Pulsing outer ring for top 5% hotspots */}
-              {isTop5 && (
-                <CircleMarker
-                  center={[lat, lng]}
-                  radius={22}
-                  pathOptions={{
-                    color: '#ef4444',
-                    fillColor: '#ef4444',
-                    fillOpacity: 0.08,
-                    weight: 1.5,
-                    dashArray: '4 4',
-                  }}
-                  className="heat-pulse"
-                />
-              )}
-              {/* Core thermal marker */}
+            <React.Fragment key={zone.zone_id}>
+              {/* Outer pulse ring */}
               <CircleMarker
                 center={[lat, lng]}
-                radius={isTop5 ? 10 : 7}
-                pathOptions={{
-                  color: color,
-                  fillColor: color,
-                  fillOpacity: isTop5 ? 0.9 : 0.7,
-                  weight: isTop5 ? 2 : 1,
-                }}
+                radius={ring.r + 6}
+                pathOptions={{ color: ring.color, fillColor: ring.fill, fillOpacity: 0.35, weight: 0 }}
+              />
+              {/* Main dot */}
+              <CircleMarker
+                center={[lat, lng]}
+                radius={ring.r}
+                pathOptions={{ color: ring.color, fillColor: ring.color, fillOpacity: 0.75, weight: 1.5 }}
               >
                 <Popup>
-                  <div className="p-3 min-w-[220px]">
-                    <div className="font-bold text-sm text-white mb-2 flex items-center gap-2">
-                      {isTop5 && <span className="text-[10px] bg-red-500/30 text-red-300 px-1.5 py-0.5 rounded font-data border border-red-500/40">TOP 5%</span>}
-                      {zone.name}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs font-data">
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Surface Temp</span>
-                        <span className="font-bold" style={{ color }}>{formatTemp(temp, unit)}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Ambient</span>
-                        <span className="font-bold text-orange-300">{formatTemp(zone.current_ambient_temp, unit)}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">WBGT</span>
-                        <span className="font-bold text-amber-400">{formatTemp(zone.wbgt_temp, unit)}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Pedestrians/hr</span>
-                        <span className="font-bold text-cyan-400">{zone.footfall_hourly?.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Zone Type</span>
-                        <span className="text-slate-300 capitalize">{zone.zone_type?.replace('_', ' ')}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block text-[10px]">Risk Level</span>
-                        <span className="text-red-300 font-semibold capitalize">{zone.risk_level}</span>
-                      </div>
-                    </div>
+                  <div style={{ padding: '10px 14px', minWidth: '180px' }}>
+                    <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '8px', letterSpacing: '2px', color: '#7070a0', marginBottom: '4px' }}>THERMAL ZONE</p>
+                    <p style={{ fontFamily: 'Bebas Neue,sans-serif', fontSize: '18px', color: ring.color, letterSpacing: '2px', marginBottom: '6px' }}>
+                      {formatTemp(temp, unit)}
+                    </p>
+                    <p style={{ fontSize: '11px', color: '#e4e4f0', fontWeight: 600 }}>{zone.zone_name}</p>
+                    {zone.pedestrian_density && (
+                      <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '9px', color: '#7070a0', marginTop: '4px' }}>
+                        Density: {zone.pedestrian_density}
+                      </p>
+                    )}
                   </div>
                 </Popup>
               </CircleMarker>
@@ -153,70 +127,47 @@ export default function ThermalMap({
           );
         })}
 
-        {/* Cooling station markers */}
-        {layers.coolingStations && stations.map(station => {
-          const lat = station.location.coordinates[1];
-          const lng = station.location.coordinates[0];
+        {/* Cooling Station Markers */}
+        {layers.coolingStations && stations.map((station) => {
+          const [lng, lat] = station.location?.coordinates || [0, 0];
           return (
             <CircleMarker
-              key={station.id}
+              key={station.station_id}
               center={[lat, lng]}
-              radius={8}
-              pathOptions={{
-                color: '#22d3ee',
-                fillColor: '#22d3ee',
-                fillOpacity: 0.85,
-                weight: 2,
-              }}
+              radius={10}
+              pathOptions={{ color: '#00D4FF', fillColor: '#00D4FF', fillOpacity: 0.8, weight: 2 }}
             >
               <Popup>
-                <div className="p-3 min-w-[200px]">
-                  <div className="font-bold text-sm text-white mb-2 flex items-center gap-2">
-                    <span className="text-lg">💧</span> {station.name}
-                  </div>
-                  <div className="space-y-1 text-xs font-data">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Type</span>
-                      <span className="text-cyan-300 capitalize">{station.station_type?.replace(/_/g, ' ')}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Temp Drop</span>
-                      <span className="text-emerald-400 font-bold">-{station.temp_drop_celsius}°C</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Capacity</span>
-                      <span className="text-white">{station.capacity_ppl_hr} ppl/hr</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Water Level</span>
-                      <span className={station.water_level_pct > 50 ? 'text-emerald-400' : 'text-amber-400'}>
-                        {station.water_level_pct}%
-                      </span>
-                    </div>
-                  </div>
+                <div style={{ padding: '10px 14px', minWidth: '180px' }}>
+                  <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '8px', letterSpacing: '2px', color: '#00D4FF', marginBottom: '4px' }}>COOLING STATION</p>
+                  <p style={{ fontFamily: 'Bebas Neue,sans-serif', fontSize: '16px', color: '#e4e4f0', letterSpacing: '2px', marginBottom: '4px' }}>{station.name}</p>
+                  <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '9px', color: '#00FF88' }}>● {station.status?.toUpperCase() || 'ACTIVE'}</p>
+                  {station.capacity && (
+                    <p style={{ fontFamily: 'Space Mono,monospace', fontSize: '9px', color: '#7070a0', marginTop: '3px' }}>Cap: {station.capacity}</p>
+                  )}
                 </div>
               </Popup>
             </CircleMarker>
           );
         })}
 
-        {/* Safe route polyline */}
+        {/* Safe Route Polyline */}
         {layers.safeRoute && routePositions.length > 1 && (
           <Polyline
             positions={routePositions}
-            pathOptions={{ color: '#10b981', weight: 4, opacity: 0.85, dashArray: '10 6' }}
+            pathOptions={{ color: '#00FF88', weight: 3, opacity: 0.85, dashArray: '8 4' }}
           />
         )}
       </MapContainer>
 
-      {/* Map overlay controls */}
+      {/* Overlay Controls */}
       <MapControls
         layers={layers}
         onToggleLayer={handleToggleLayer}
+        onChangeBaseMap={setBaseMap}
+        activeBaseMap={baseMap}
         tempFilter={tempFilter}
         onChangeTempFilter={setTempFilter}
-        baseMap={baseMap}
-        onChangeBaseMap={setBaseMap}
       />
       <HeatLegend unit={unit} />
     </div>

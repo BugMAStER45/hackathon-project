@@ -1,141 +1,101 @@
 import React, { useState } from 'react';
-import { Droplet, Sparkles, CheckCircle2, Zap } from 'lucide-react';
-import { formatTemp } from '../../utils/thermalCalculators';
 
-export default function StationOptimizer({
-  recommendations = [],
-  activeStations = [],
-  unit,
-  onDeployRecommendation
-}) {
-  const [filterType, setFilterType] = useState('all');
+const PRIORITY_STYLES = {
+  CRITICAL: { color:'var(--pink)',   border:'rgba(255,45,85,0.3)',   bg:'rgba(255,45,85,0.10)'   },
+  HIGH:     { color:'var(--orange)', border:'rgba(255,107,53,0.3)',  bg:'rgba(255,107,53,0.10)'  },
+  MEDIUM:   { color:'var(--gold)',   border:'rgba(255,215,0,0.3)',   bg:'rgba(255,215,0,0.08)'   },
+  LOW:      { color:'var(--cyan)',   border:'rgba(0,212,255,0.3)',   bg:'rgba(0,212,255,0.08)'   },
+};
 
-  const filtered = recommendations.filter(r => {
-    if (filterType === 'all') return true;
-    return r.station_type === filterType;
-  });
+const TYPE_FILTERS = ['ALL','MISTING','SHADE','SHELTER','MOBILE'];
 
-  const types = ['all', 'misting_tent', 'solar_cooling_pod', 'hydration_kiosk', 'tree_canopy_shelter'];
+export default function StationOptimizer({ recommendations = [], onDeploy }) {
+  const [filter, setFilter] = useState('ALL');
+  const [deploying, setDeploying] = useState(null);
+
+  const filtered = filter === 'ALL'
+    ? recommendations
+    : recommendations.filter(r => r.station_type?.toUpperCase() === filter);
+
+  async function handleDeploy(rec) {
+    setDeploying(rec.zone_id);
+    try { if (onDeploy) await onDeploy(rec); }
+    finally { setDeploying(null); }
+  }
+
+  if (!recommendations.length) return (
+    <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--muted)' }}>
+      <div style={{ fontSize:'36px', marginBottom:'10px' }}>❄️</div>
+      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'11px', lineHeight:1.9 }}>No recommendations available.<br/>Load city data to generate placements.</div>
+    </div>
+  );
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5 animate-fade-slide">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/40 text-cyan-400">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              Cooling Station Optimizer
-              <span className="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/40 font-data">
-                AI / Algorithmic
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              Optimal placement based on pedestrian footfall, solar deficit &amp; microclimate risk
-            </p>
-          </div>
-        </div>
-
-        {/* Filter pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs shrink-0">
-          {types.map(type => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className={`px-2.5 py-1 rounded-lg font-medium capitalize whitespace-nowrap transition-colors font-data ${
-                filterType === type
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {type === 'all' ? 'All' : type.replace(/_/g, ' ')}
-            </button>
-          ))}
-        </div>
+    <div>
+      {/* Type filter pills */}
+      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'14px' }}>
+        {TYPE_FILTERS.map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            padding:'5px 12px', borderRadius:'20px', border:'none', cursor:'pointer', transition:'all 0.2s',
+            fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'11px', letterSpacing:'0.5px',
+            background: filter===f ? 'linear-gradient(135deg,var(--purple),rgba(90,29,204,0.8))' : 'var(--bg2)',
+            color: filter===f ? '#fff' : 'var(--muted)',
+            boxShadow: filter===f ? '0 0 12px rgba(157,78,221,0.3)' : 'none',
+          }}>{f}</button>
+        ))}
       </div>
 
-      {/* Stats banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-          <span className="text-[11px] text-slate-400">Active Deployed</span>
-          <div className="text-xl font-display text-emerald-400 mt-0.5 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            {activeStations.length} Active
-          </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+        <div style={{ fontFamily:'Space Mono,monospace', fontSize:'9px', letterSpacing:'3px', color:'var(--muted)', marginBottom:'4px' }}>
+          AI PLACEMENT OPTIMIZER — {filtered.length} RECOMMENDATIONS
         </div>
-        <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-          <span className="text-[11px] text-slate-400">Recommended</span>
-          <div className="text-xl font-display text-cyan-400 mt-0.5 flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            {recommendations.length} Zones
-          </div>
-        </div>
-        <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-          <span className="text-[11px] text-slate-400">Projected Relief</span>
-          <div className="text-xl font-display text-orange-400 mt-0.5">
-            -4.5°C to -6.2°C
-          </div>
-        </div>
-      </div>
-
-      {/* Recommendation cards */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-10">
-          <span className="text-4xl">💧</span>
-          <p className="text-slate-400 font-data text-sm mt-2">No recommendations for this filter</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map(rec => (
-            <div
-              key={rec.id}
-              className="bg-slate-950 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-4 transition-all hover:shadow-lg hover:shadow-cyan-950/20 group"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div>
-                  <span className="text-[10px] uppercase font-data tracking-wider text-cyan-400 font-semibold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-                    Priority: {rec.priority_score}
-                  </span>
-                  <h4 className="font-bold text-sm text-slate-100 mt-1.5 group-hover:text-cyan-300 transition-colors">
-                    {rec.name}
-                  </h4>
+        {filtered.map((rec, i) => {
+          const ps = PRIORITY_STYLES[rec.priority?.toUpperCase()] || PRIORITY_STYLES.MEDIUM;
+          const tempDrop = rec.temp_drop_celsius ?? rec.estimated_benefit;
+          return (
+            <div key={rec.zone_id || i} style={{
+              background:'var(--bg2)', border:`1px solid ${ps.border}`,
+              borderRadius:'var(--r)', overflow:'hidden', transition:'border-color 0.2s',
+            }}>
+              <div style={{ padding:'12px 14px' }}>
+                <div style={{ display:'flex', alignItems:'flex-start', gap:'10px', marginBottom:'8px' }}>
+                  {/* Priority badge */}
+                  <span style={{
+                    background:ps.bg, color:ps.color, border:`1px solid ${ps.border}`,
+                    fontFamily:'Space Mono,monospace', fontSize:'8px', fontWeight:700,
+                    letterSpacing:'1px', padding:'3px 8px', borderRadius:'4px', flexShrink:0, marginTop:'2px',
+                  }}>{rec.priority || 'MED'}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700, fontSize:'13px' }}>{rec.zone_name || `Zone ${rec.zone_id}`}</div>
+                    {rec.station_type && (
+                      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'9px', color:'var(--cyan)', marginTop:'2px' }}>{rec.station_type.toUpperCase()} STATION</div>
+                    )}
+                  </div>
+                  {tempDrop != null && (
+                    <div style={{ textAlign:'right', flexShrink:0 }}>
+                      <div style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:'20px', color:'var(--green)', lineHeight:1 }}>-{parseFloat(tempDrop).toFixed(1)}°C</div>
+                      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', color:'var(--muted2)' }}>TEMP DROP</div>
+                    </div>
+                  )}
                 </div>
-                {/* Fixed: was incorrectly showing dollar sign before °C */}
-                <span className="text-xs font-data font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 shrink-0">
-                  -{rec.temp_drop_celsius}°C Relief
-                </span>
+                {rec.reasoning && (
+                  <p style={{ fontSize:'11.5px', color:'var(--muted2)', lineHeight:1.7, marginBottom:'10px' }}>{rec.reasoning}</p>
+                )}
+                <button onClick={() => handleDeploy(rec)} disabled={deploying===rec.zone_id} style={{
+                  width:'100%', padding:'8px', borderRadius:'8px', cursor:'pointer',
+                  background: deploying===rec.zone_id ? 'var(--bg3)' : 'linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,212,255,0.10))',
+                  color: deploying===rec.zone_id ? 'var(--muted)' : 'var(--green)',
+                  border: `1px solid ${deploying===rec.zone_id ? 'var(--border)' : 'rgba(0,255,136,0.3)'}`,
+                  fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'12px',
+                  letterSpacing:'0.5px', transition:'all 0.2s',
+                }}>
+                  {deploying===rec.zone_id ? '⏳ Deploying…' : '🚀 Deploy Station'}
+                </button>
               </div>
-
-              <p className="text-xs text-slate-400 mb-3 leading-relaxed">{rec.rationale}</p>
-
-              <div className="grid grid-cols-3 gap-2 bg-slate-900/90 p-2 rounded-lg border border-slate-800/80 text-xs mb-3 font-data">
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Capacity</span>
-                  <strong className="text-slate-200">{rec.capacity_ppl_hr} ppl/hr</strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Radius</span>
-                  <strong className="text-slate-200">{rec.cooling_radius_m}m</strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Est. Cost</span>
-                  <strong className="text-slate-200">${rec.cost_estimate_usd?.toLocaleString()}</strong>
-                </div>
-              </div>
-
-              <button
-                onClick={() => onDeployRecommendation && onDeployRecommendation(rec)}
-                className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-cyan-600/20"
-              >
-                <Droplet className="w-3.5 h-3.5" />
-                Simulate &amp; Deploy
-              </button>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }

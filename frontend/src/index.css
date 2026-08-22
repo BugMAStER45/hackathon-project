@@ -4,76 +4,163 @@
 @tailwind utilities;
 
 :root {
+  --bg:    #060610;
+  --bg2:   #0b0b1c;
+  --bg3:   #11112a;
+  --bg4:   #161630;
+  --border:  rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text:  #e4e4f0;
+  --muted: #4a4a70;
+  --muted2:#7070a0;
+  --gold:  #FFD700;
+  --gold2: #FFA500;
+  --orange:#FF6B35;
+  --pink:  #FF2D55;
+  --purple:#9D4EDD;
+  --cyan:  #00D4FF;
+  --green: #00FF88;
+  --red:   #ff3344;
   --font-display: 'Bebas Neue', sans-serif;
-  --font-mono: 'Space Mono', monospace;
+  --font-mono:    'Space Mono', monospace;
+  --font-body:    'Rajdhani', sans-serif;
+  --r:  12px;
+  --r2:  8px;
 }
 
-/* Leaflet popup dark theme */
+/* ── BASE ── */
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+/* ── STARFIELD ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.25) 0%, transparent 100%),
+    radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.20) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 80%, rgba(255,255,255,0.18) 0%, transparent 100%),
+    radial-gradient(1px 1px at 10% 70%, rgba(255,255,255,0.22) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.25) 0%, transparent 100%),
+    radial-gradient(1px 1px at 40% 15%, rgba(255,255,255,0.18) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 45%, rgba(255,255,255,0.12) 0%, transparent 100%),
+    radial-gradient(2px 2px at 25% 55%, rgba(157,78,221,0.35) 0%, transparent 100%),
+    radial-gradient(2px 2px at 75% 25%, rgba(0,212,255,0.28) 0%, transparent 100%),
+    radial-gradient(2px 2px at 60% 85%, rgba(0,255,136,0.22) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── LEAFLET DARK THEME ── */
+.leaflet-container {
+  background: #0a0a1a !important;
+}
+.leaflet-tile {
+  filter: none !important;
+}
 .leaflet-popup-content-wrapper {
-  background: #0f172a !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
+  background: #0b0b1c !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
   border-radius: 12px !important;
   box-shadow: 0 25px 50px rgba(0,0,0,0.6) !important;
   color: #e2e8f0 !important;
   padding: 0 !important;
 }
-.leaflet-popup-tip {
-  background: #0f172a !important;
+.leaflet-popup-tip    { background: #0b0b1c !important; }
+.leaflet-popup-content { margin: 0 !important; }
+.leaflet-control-zoom a {
+  background: #0b0b1c !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: var(--cyan) !important;
 }
-.leaflet-popup-content {
-  margin: 0 !important;
+.leaflet-control-zoom a:hover {
+  background: #11112a !important;
 }
-.custom-cooling-icon {
-  background: none !important;
-  border: none !important;
-}
+.custom-cooling-icon { background: none !important; border: none !important; }
 
-/* Tab/card entrance animation */
+/* ── ANIMATIONS ── */
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-slide {
-  animation: fadeSlideIn 0.25s ease forwards;
-}
+.animate-fade-slide { animation: fadeSlideIn 0.25s ease forwards; }
 
-/* Hotspot pulse animation */
 @keyframes heatPulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50%       { transform: scale(1.35); opacity: 0.15; }
+  0%,100% { transform: scale(1);    opacity: 0.55; }
+  50%      { transform: scale(1.35); opacity: 0.12; }
 }
-.heat-pulse {
-  animation: heatPulse 1.8s ease-in-out infinite;
-}
+.heat-pulse { animation: heatPulse 1.8s ease-in-out infinite; }
 
-/* Skeleton shimmer */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  100% { background-position:  400px 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #1e293b 25%, #253347 50%, #1e293b 75%);
+  background: linear-gradient(90deg, #0b0b1c 25%, #161630 50%, #0b0b1c 75%);
   background-size: 800px 100%;
   animation: shimmer 1.5s infinite linear;
   border-radius: 8px;
 }
 
-/* Toast slide in */
-@keyframes toastIn {
-  from { opacity: 0; transform: translateX(100%); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes toastOut {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(100%); }
-}
-.toast-enter { animation: toastIn 0.35s ease forwards; }
-.toast-exit  { animation: toastOut 0.3s ease forwards; }
+@keyframes toastIn  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
+@keyframes toastOut { from { opacity:1; transform:translateX(0);   } to { opacity:0; transform:translateX(100%); } }
+.toast-enter { animation: toastIn  0.35s ease forwards; }
+.toast-exit  { animation: toastOut 0.30s ease forwards; }
 
-/* Hide scrollbar but keep scroll */
-.no-scrollbar { scrollbar-width: none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+.blink { animation: blink 1.4s infinite; }
+
+@keyframes aurora-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── SCROLLBAR ── */
+.no-scrollbar  { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Data font utility */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
+
+/* ── TYPOGRAPHY UTILITIES ── */
 .font-display { font-family: var(--font-display); }
 .font-data    { font-family: var(--font-mono); }
+.font-body    { font-family: var(--font-body); }
+
+/* ── CARD UTILITY ── */
+.cosmic-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.cosmic-card:hover {
+  border-color: var(--border2);
+}
+
+/* ── BADGE UTILITIES ── */
+.badge-extreme { background:rgba(255,45,85,0.12);  color:var(--pink);   border:1px solid rgba(255,45,85,0.25);  }
+.badge-high    { background:rgba(255,107,53,0.12); color:var(--orange); border:1px solid rgba(255,107,53,0.25); }
+.badge-watch   { background:rgba(255,215,0,0.10);  color:var(--gold);   border:1px solid rgba(255,215,0,0.25);  }
+.badge-safe    { background:rgba(0,255,136,0.10);  color:var(--green);  border:1px solid rgba(0,255,136,0.25);  }
+.badge-cool    { background:rgba(0,212,255,0.10);  color:var(--cyan);   border:1px solid rgba(0,212,255,0.25);  }
+.badge-purple  { background:rgba(157,78,221,0.12); color:var(--purple); border:1px solid rgba(157,78,221,0.25); }
+
+/* ── AURORA GRADIENT TEXT ── */
+.aurora-text {
+  background: linear-gradient(135deg, #00FF88, #00D4FF, #9D4EDD, #FF2D55);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

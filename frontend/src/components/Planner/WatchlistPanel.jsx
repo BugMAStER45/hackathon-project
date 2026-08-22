@@ -1,68 +1,59 @@
 import React from 'react';
-import { AlertCircle, TrendingUp } from 'lucide-react';
-import { formatTemp } from '../../utils/thermalCalculators';
+import { formatTemp, getHeatRiskLevel } from '../../utils/thermalCalculators';
 
-function RiskPill({ temp }) {
-  if (temp >= 45) return <span className="px-2 py-0.5 rounded text-[10px] font-semibold font-data bg-red-500/20 text-red-300 border border-red-500/40">EXTREME</span>;
-  if (temp >= 40) return <span className="px-2 py-0.5 rounded text-[10px] font-semibold font-data bg-orange-500/20 text-orange-300 border border-orange-500/40">HIGH</span>;
-  return <span className="px-2 py-0.5 rounded text-[10px] font-semibold font-data bg-amber-500/20 text-amber-300 border border-amber-500/40">WATCHLIST</span>;
-}
+const RISK_STYLES = {
+  EXTREME:   { bg:'rgba(255,45,85,0.12)',   color:'var(--pink)',   border:'rgba(255,45,85,0.3)',   dot:'#FF2D55' },
+  HIGH:      { bg:'rgba(255,107,53,0.12)',  color:'var(--orange)', border:'rgba(255,107,53,0.3)',  dot:'#FF6B35' },
+  WATCHLIST: { bg:'rgba(255,215,0,0.10)',   color:'var(--gold)',   border:'rgba(255,215,0,0.3)',   dot:'#FFD700' },
+  MODERATE:  { bg:'rgba(0,212,255,0.10)',   color:'var(--cyan)',   border:'rgba(0,212,255,0.3)',   dot:'#00D4FF' },
+};
 
-export default function WatchlistPanel({ watchlist = [], unit }) {
+export default function WatchlistPanel({ zones = [], unit = 'C' }) {
+  if (!zones.length) return (
+    <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--muted)' }}>
+      <div style={{ fontSize:'36px', marginBottom:'10px' }}>✅</div>
+      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'11px', lineHeight:1.9 }}>No zones on watchlist.<br/>All sectors within safe thresholds.</div>
+    </div>
+  );
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 animate-fade-slide">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
-            <AlertCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              Watchlist Sectors
-              <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/40 font-data">
-                {watchlist.length} Sectors
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400">Proactive thermal surveillance — zones exceeding 35°C</p>
-          </div>
-        </div>
+    <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'9px', letterSpacing:'3px', color:'var(--muted)', marginBottom:'6px' }}>
+        HEAT RISK WATCHLIST — {zones.length} ZONES &gt;35°C
       </div>
-
-      {watchlist.length === 0 ? (
-        <div className="text-center py-10 space-y-2">
-          <span className="text-4xl">🌡️</span>
-          <p className="text-slate-400 text-sm font-data">No sectors in watchlist</p>
-          <p className="text-slate-500 text-xs">All zones are below the 35°C threshold</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[480px]">
-            <thead className="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800 uppercase tracking-wider text-[10px]">
-              <tr>
-                <th className="py-2.5 px-3">Sector</th>
-                <th className="py-2.5 px-3">Surface Temp</th>
-                <th className="py-2.5 px-3">Delta +35°C</th>
-                <th className="py-2.5 px-3">Rise Rate</th>
-                <th className="py-2.5 px-3">Risk</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {watchlist.map(item => (
-                <tr key={item.zone_id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-2.5 px-3 font-semibold text-slate-200">{item.name}</td>
-                  <td className="py-2.5 px-3 font-data font-bold text-orange-400">{formatTemp(item.surface_temp, unit)}</td>
-                  <td className="py-2.5 px-3 font-data text-amber-300">+{item.threshold_exceeded_by}°C</td>
-                  <td className="py-2.5 px-3 font-data text-slate-300 flex items-center gap-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-red-400" />
-                    +{item.rate_of_temp_rise}°C/hr
-                  </td>
-                  <td className="py-2.5 px-3"><RiskPill temp={item.surface_temp} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {zones.map((zone, i) => {
+        const temp = zone.current_surface_temp || 0;
+        const risk = getHeatRiskLevel(temp);
+        const s    = RISK_STYLES[risk] || RISK_STYLES.MODERATE;
+        return (
+          <div key={zone.zone_id || i} className="animate-fade-slide" style={{
+            background:'var(--bg2)', border:`1px solid ${s.border}`,
+            borderRadius:'var(--r)', padding:'12px 14px',
+            display:'flex', alignItems:'center', gap:'12px',
+            transition:'border-color 0.2s',
+            animationDelay: `${i * 0.04}s`,
+          }}>
+            {/* Status dot */}
+            <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:s.dot, flexShrink:0, boxShadow:`0 0 8px ${s.dot}` }} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:700, fontSize:'13px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                {zone.zone_name || `Zone ${zone.zone_id}`}
+              </div>
+              {zone.surface_material && (
+                <div style={{ fontFamily:'Space Mono,monospace', fontSize:'8.5px', color:'var(--muted2)', marginTop:'2px' }}>{zone.surface_material}</div>
+              )}
+            </div>
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <div style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:'20px', color:s.color, lineHeight:1 }}>{formatTemp(temp, unit)}</div>
+              <span style={{
+                background:s.bg, color:s.color, border:`1px solid ${s.border}`,
+                fontFamily:'Space Mono,monospace', fontSize:'8px', fontWeight:700,
+                letterSpacing:'1px', padding:'2px 7px', borderRadius:'4px', marginTop:'3px', display:'inline-block',
+              }}>{risk}</span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

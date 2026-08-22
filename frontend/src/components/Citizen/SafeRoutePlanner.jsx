@@ -1,165 +1,112 @@
 import React, { useState, useEffect } from 'react';
-import { Compass, Trees, ShieldCheck, Sun } from 'lucide-react';
-import { formatTemp } from '../../utils/thermalCalculators';
 
-export default function SafeRoutePlanner({
-  zones = [],
-  onCalculateRoute,
-  activeRoute,
-  unit
-}) {
-  const [originId, setOriginId] = useState('');
+export default function SafeRoutePlanner({ zones = [], onRouteCalculated }) {
+  const [originId,      setOriginId]      = useState('');
   const [destinationId, setDestinationId] = useState('');
-  const [preference, setPreference] = useState('coolest_shaded');
-  const [loading, setLoading] = useState(false);
+  const [preference,    setPreference]    = useState('shade');
+  const [loading,       setLoading]       = useState(false);
+  const [result,        setResult]        = useState(null);
+  const [error,         setError]         = useState(null);
 
-  // Fix: sync defaults when zones load
   useEffect(() => {
-    if (zones.length >= 2) {
-      if (!originId) setOriginId(zones[0].id);
-      if (!destinationId) setDestinationId(zones[1].id);
+    if (zones.length >= 2 && !originId) {
+      setOriginId(zones[0].zone_id);
+      setDestinationId(zones[1].zone_id);
     }
   }, [zones]);
 
-  const handleCompute = async () => {
-    const originZone = zones.find(z => z.id === originId) || zones[0];
-    const destZone   = zones.find(z => z.id === destinationId) || zones[1];
-    if (!originZone || !destZone) return;
-    setLoading(true);
-    await onCalculateRoute({
-      origin:      [originZone.location.coordinates[1], originZone.location.coordinates[0]],
-      destination: [destZone.location.coordinates[1],   destZone.location.coordinates[0]],
-      preference
-    });
-    setLoading(false);
-  };
+  async function handleCalculate() {
+    if (!originId || !destinationId || originId === destinationId) {
+      setError('Please select two different zones.'); return;
+    }
+    setLoading(true); setError(null); setResult(null);
+    try {
+      const res = await fetch('/api/navigation/safe-route', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ origin_zone_id: originId, destination_zone_id: destinationId, preference }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setResult(data);
+      if (onRouteCalculated) onRouteCalculated(data);
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-5 animate-fade-slide">
-      {/* Header */}
-      <div className="flex items-center gap-2.5 border-b border-slate-800 pb-3">
-        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-          <Compass className="w-5 h-5" />
-        </div>
-        <div>
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            Safe Shaded Route Navigator
-            <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/40 font-data">
-              Heat-Shielded
-            </span>
-          </h3>
-          <p className="text-xs text-slate-400">Avoid high-albedo asphalt — navigate via shaded parks &amp; misting kiosks</p>
-        </div>
-      </div>
+    <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'9px', letterSpacing:'3px', color:'var(--muted)' }}>SAFE ROUTE NAVIGATOR</div>
 
-      {/* Selectors */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1">Origin</label>
-          <select
-            value={originId}
-            onChange={e => setOriginId(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
-          >
-            {zones.map(z => (
-              <option key={`orig_${z.id}`} value={z.id}>
-                {z.name} ({formatTemp(z.current_surface_temp, unit)})
-              </option>
-            ))}
+      {/* Zone selectors */}
+      {[{label:'ORIGIN', value:originId, set:setOriginId}, {label:'DESTINATION', value:destinationId, set:setDestinationId}].map(({label,value,set}) => (
+        <div key={label}>
+          <div style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', letterSpacing:'2px', color:'var(--muted2)', marginBottom:'6px' }}>{label}</div>
+          <select value={value} onChange={e=>set(e.target.value)} style={{
+            width:'100%', background:'var(--bg2)', border:'1px solid var(--border)',
+            borderRadius:'8px', color:'var(--text)',
+            fontFamily:'Rajdhani,sans-serif', fontWeight:600, fontSize:'13px',
+            padding:'9px 12px', outline:'none', cursor:'pointer',
+          }}>
+            <option value=''>— Select Zone —</option>
+            {zones.map(z => <option key={z.zone_id} value={z.zone_id}>{z.zone_name}</option>)}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1">Destination</label>
-          <select
-            value={destinationId}
-            onChange={e => setDestinationId(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
-          >
-            {zones.map(z => (
-              <option key={`dest_${z.id}`} value={z.id}>
-                {z.name} ({formatTemp(z.current_surface_temp, unit)})
-              </option>
-            ))}
-          </select>
+      ))}
+
+      {/* Preference */}
+      <div>
+        <div style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', letterSpacing:'2px', color:'var(--muted2)', marginBottom:'8px' }}>ROUTING PREFERENCE</div>
+        <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+          {[{id:'shade',label:'🌳 Max Shade'},{id:'cool',label:'❄️ Coolest Path'},{id:'fast',label:'⚡ Fastest'}].map(p => (
+            <button key={p.id} onClick={()=>setPreference(p.id)} style={{
+              flex:1, padding:'8px 10px', borderRadius:'8px', border:'none', cursor:'pointer', transition:'all 0.2s',
+              background: preference===p.id ? 'linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,212,255,0.10))' : 'var(--bg2)',
+              color: preference===p.id ? 'var(--green)' : 'var(--muted)',
+              outline: `1px solid ${preference===p.id ? 'rgba(0,255,136,0.3)' : 'var(--border)'}`,
+              fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'12px',
+            }}>{p.label}</button>
+          ))}
         </div>
       </div>
 
-      {/* Route preference */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <button
-          onClick={() => setPreference('coolest_shaded')}
-          className={`flex-1 p-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all ${
-            preference === 'coolest_shaded'
-              ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
-              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Trees className="w-4 h-4 text-emerald-400" />
-            <div className="text-left">
-              <div className="font-bold text-white">Coolest Shaded</div>
-              <div className="text-[10px] text-emerald-400/80">Max shade + cooling stations</div>
-            </div>
-          </div>
-          <span className="text-[10px] font-data bg-emerald-500/30 px-2 py-0.5 rounded">-45% Heat</span>
-        </button>
+      {/* Calculate button */}
+      <button onClick={handleCalculate} disabled={loading} style={{
+        padding:'11px', borderRadius:'10px', border:'none', cursor: loading ? 'wait' : 'pointer',
+        background: loading ? 'var(--bg3)' : 'linear-gradient(135deg,#00FF88,#00D4FF)',
+        color: loading ? 'var(--muted)' : '#060610',
+        fontFamily:'Bebas Neue,sans-serif', fontSize:'16px', letterSpacing:'2px', transition:'all 0.2s',
+      }}>{loading ? 'CALCULATING SAFE ROUTE…' : '🛡️ CALCULATE SAFE ROUTE'}</button>
 
-        <button
-          onClick={() => setPreference('fastest')}
-          className={`flex-1 p-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all ${
-            preference === 'fastest'
-              ? 'bg-red-500/20 border-red-500/60 text-red-300'
-              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Sun className="w-4 h-4 text-orange-400" />
-            <div className="text-left">
-              <div className="font-bold text-white">Fastest Direct</div>
-              <div className="text-[10px] text-red-400/80">Direct asphalt sidewalk</div>
-            </div>
-          </div>
-          <span className="text-[10px] font-data bg-slate-800 px-2 py-0.5 rounded text-slate-300">Unshaded</span>
-        </button>
-      </div>
+      {error && (
+        <div style={{ background:'rgba(255,45,85,0.08)', border:'1px solid rgba(255,45,85,0.25)', borderRadius:'8px', padding:'10px 14px', color:'var(--pink)', fontFamily:'Space Mono,monospace', fontSize:'11px' }}>
+          ⚠️ {error}
+        </div>
+      )}
 
-      <button
-        onClick={handleCompute}
-        disabled={loading || zones.length < 2}
-        className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all"
-      >
-        <Compass className="w-4 h-4" />
-        {loading ? 'Calculating Thermal Path...' : 'Find Coolest Safe Route'}
-      </button>
-
-      {/* Route result */}
-      {activeRoute && (
-        <div className="bg-slate-950 p-4 rounded-xl border border-emerald-500/40 space-y-3 animate-fade-slide">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span className="font-bold text-xs text-white">
-                {activeRoute.route_type === 'coolest_shaded' ? 'Cool-Path Recommended' : 'Direct Path'}
-              </span>
+      {result && (
+        <div style={{ background:'var(--bg2)', border:'1px solid rgba(0,255,136,0.25)', borderRadius:'var(--r)', padding:'14px', display:'flex', flexDirection:'column', gap:'8px' }}>
+          <div style={{ fontFamily:'Space Mono,monospace', fontSize:'9px', letterSpacing:'2px', color:'var(--green)', marginBottom:'4px' }}>✅ SAFE ROUTE CALCULATED</div>
+          {result.total_distance_km != null && (
+            <div style={{ display:'flex', gap:'10px' }}>
+              <div style={{ background:'var(--bg3)', borderRadius:'8px', padding:'8px 14px', textAlign:'center', flex:1, border:'1px solid var(--border)' }}>
+                <div style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:'22px', color:'var(--cyan)' }}>{result.total_distance_km?.toFixed(2)} km</div>
+                <div style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', color:'var(--muted)' }}>DISTANCE</div>
+              </div>
+              {result.avg_shade_pct != null && (
+                <div style={{ background:'var(--bg3)', borderRadius:'8px', padding:'8px 14px', textAlign:'center', flex:1, border:'1px solid var(--border)' }}>
+                  <div style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:'22px', color:'var(--green)' }}>{result.avg_shade_pct?.toFixed(0)}%</div>
+                  <div style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', color:'var(--muted)' }}>SHADE COVER</div>
+                </div>
+              )}
             </div>
-            <span className="text-xs font-data font-bold text-emerald-400">
-              {activeRoute.total_distance_m}m &bull; {activeRoute.duration_minutes} min
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-xs font-data">
-            <div>
-              <span className="text-[10px] text-slate-500 block">Avg Temp</span>
-              <strong className="text-emerald-400">{formatTemp(activeRoute.average_temp_celsius, unit)}</strong>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block">Shade</span>
-              <strong className="text-white">{activeRoute.shaded_percentage}%</strong>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block">Heat Relief</span>
-              <strong className="text-cyan-300">-{activeRoute.thermal_stress_reduction_pct}%</strong>
-            </div>
-          </div>
+          )}
+          {result.safety_notes && (
+            <p style={{ fontSize:'11.5px', color:'var(--muted2)', lineHeight:1.7 }}>{result.safety_notes}</p>
+          )}
         </div>
       )}
     </div>

@@ -3,7 +3,6 @@ import { CheckCircle2, XCircle, AlertTriangle, X } from 'lucide-react';
 
 function ToastItem({ toast, onRemove }) {
   const [leaving, setLeaving] = useState(false);
-
   useEffect(() => {
     const t = setTimeout(() => {
       setLeaving(true);
@@ -13,42 +12,49 @@ function ToastItem({ toast, onRemove }) {
   }, [toast, onRemove]);
 
   const icons = {
-    success: <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />,
-    error:   <XCircle className="w-4 h-4 text-red-400 shrink-0" />,
-    warning: <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />,
+    success: <CheckCircle2 size={14} color='var(--green)' />,
+    error:   <XCircle     size={14} color='var(--pink)'  />,
+    warning: <AlertTriangle size={14} color='var(--gold)' />,
   };
   const borders = {
-    success: 'border-emerald-500/40',
-    error:   'border-red-500/40',
-    warning: 'border-amber-500/40',
+    success: 'rgba(0,255,136,0.3)',
+    error:   'rgba(255,45,85,0.3)',
+    warning: 'rgba(255,215,0,0.3)',
   };
 
   return (
-    <div className={`flex items-start gap-3 bg-slate-900 border ${
-      borders[toast.type] || 'border-slate-700'
-    } rounded-xl px-4 py-3 shadow-2xl max-w-sm text-sm ${
-      leaving ? 'toast-exit' : 'toast-enter'
-    }`}>
-      {icons[toast.type]}
-      <div className="flex-1">
-        {toast.title && <p className="font-bold text-white text-xs">{toast.title}</p>}
-        <p className="text-slate-300 text-xs leading-relaxed">{toast.message}</p>
+    <div className={leaving ? 'toast-exit' : 'toast-enter'} style={{
+      display:'flex', alignItems:'flex-start', gap:'10px',
+      background:'var(--bg2)', border:`1px solid ${borders[toast.type] || 'var(--border)'}`,
+      borderRadius:'12px', padding:'12px 14px',
+      boxShadow:'0 20px 40px rgba(0,0,0,0.5)', maxWidth:'320px',
+    }}>
+      <div style={{ marginTop:'1px', flexShrink:0 }}>{icons[toast.type]}</div>
+      <div style={{ flex:1 }}>
+        {toast.title && <p style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:'13px', letterSpacing:'1px', color:'var(--text)', marginBottom:'2px' }}>{toast.title}</p>}
+        <p style={{ fontFamily:'Rajdhani,sans-serif', fontSize:'12px', color:'var(--muted2)', lineHeight:1.5 }}>{toast.message}</p>
       </div>
-      <button
-        onClick={() => { setLeaving(true); setTimeout(() => onRemove(toast.id), 300); }}
-        className="text-slate-500 hover:text-slate-200 transition-colors shrink-0"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
+      <button onClick={() => { setLeaving(true); setTimeout(() => onRemove(toast.id), 300); }} style={{
+        background:'none', border:'none', cursor:'pointer', color:'var(--muted)', padding:'0', flexShrink:0,
+      }}><X size={12} /></button>
     </div>
   );
 }
 
-export default function ToastContainer({ toasts, onRemove }) {
-  if (!toasts.length) return null;
+export function ToastContainer({ toasts, onRemove }) {
   return (
-    <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2">
-      {toasts.map(t => <ToastItem key={t.id} toast={t} onRemove={onRemove} />)}
+    <div style={{
+      position:'fixed', top:'80px', right:'16px', zIndex:9999,
+      display:'flex', flexDirection:'column', gap:'8px',
+      pointerEvents:'none',
+    }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{ pointerEvents:'all' }}>
+          <ToastItem toast={t} onRemove={onRemove} />
+        </div>
+      ))}
     </div>
   );
 }
+
+export default ToastContainer;

@@ -78,3 +78,10 @@ export const getStationIcon = (type) => {
       return 'ShieldCheck';
   }
 };
+
+export const getHeatRiskLevel = (tempC) => {
+  if (tempC >= 43) return 'EXTREME';
+  if (tempC >= 40) return 'HIGH';
+  if (tempC >= 35) return 'WATCHLIST';
+  return 'MODERATE';
+};

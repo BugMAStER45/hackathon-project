@@ -1,111 +1,71 @@
 import React from 'react';
-import { Droplet, Navigation, SunMedium, CloudFog, Trees } from 'lucide-react';
-import { formatTemp } from '../../utils/thermalCalculators';
 
-function StationIcon({ type }) {
-  switch (type) {
-    case 'misting_tent':        return <CloudFog className="w-4 h-4 text-cyan-400" />;
-    case 'solar_cooling_pod':   return <SunMedium className="w-4 h-4 text-amber-400" />;
-    case 'tree_canopy_shelter': return <Trees className="w-4 h-4 text-emerald-400" />;
-    default:                    return <Droplet className="w-4 h-4 text-blue-400" />;
-  }
-}
-
-function WaterBar({ pct = 0 }) {
-  const color = pct > 60 ? 'bg-emerald-500' : pct > 30 ? 'bg-amber-500' : 'bg-red-500';
+function WaterBar({ pct }) {
+  const p = Math.min(Math.max(pct || 0, 0), 100);
+  const color = p > 60 ? 'var(--green)' : p > 30 ? 'var(--cyan)' : 'var(--orange)';
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className={`text-[10px] font-data font-bold ${
-        pct > 60 ? 'text-emerald-400' : pct > 30 ? 'text-amber-400' : 'text-red-400'
-      }`}>{pct}%</span>
+    <div style={{ width:'100%', height:'5px', background:'var(--bg3)', borderRadius:'3px', overflow:'hidden', marginTop:'4px' }}>
+      <div style={{ height:'100%', width:`${p}%`, background:color, borderRadius:'3px', transition:'width 0.8s ease' }} />
     </div>
   );
 }
 
-export default function CoolingOasisList({ stations = [], unit, onNavigateToStation }) {
+export default function CoolingOasisList({ stations = [], onNavigateToStation }) {
+  if (!stations.length) return (
+    <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--muted)' }}>
+      <div style={{ fontSize:'36px', marginBottom:'10px' }}>💧</div>
+      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'11px', lineHeight:1.9 }}>No cooling stations found.<br/>Load city data to show stations.</div>
+    </div>
+  );
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4 animate-fade-slide">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-            <Droplet className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              Nearest Cooling Oases
-              <span className="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/40 font-data">
-                {stations.length} Active
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400">Public misting stations, cold water refills &amp; air-cooled shelters</p>
-          </div>
-        </div>
+    <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+      <div style={{ fontFamily:'Space Mono,monospace', fontSize:'9px', letterSpacing:'3px', color:'var(--muted)', marginBottom:'6px' }}>
+        ACTIVE COOLING STATIONS — {stations.length}
       </div>
-
-      {stations.length === 0 ? (
-        <div className="text-center py-12 space-y-2">
-          <span className="text-5xl">💧</span>
-          <p className="text-slate-400 font-data text-sm">No cooling stations deployed yet</p>
-          <p className="text-slate-500 text-xs">Ask your city planner to deploy cooling hubs</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {stations.map(st => (
-            <div
-              key={st.id}
-              className="bg-slate-950 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-4 transition-all hover:shadow-lg hover:shadow-cyan-950/30 group"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                    <StationIcon type={st.station_type} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-100 group-hover:text-cyan-300 transition-colors">
-                      {st.name}
-                    </h4>
-                    <span className="text-[11px] text-slate-400 capitalize">
-                      {st.station_type?.replace(/_/g, ' ')}
-                    </span>
-                  </div>
+      {stations.map((st, i) => {
+        const isActive = (st.status || 'active').toLowerCase() === 'active';
+        const waterPct = st.water_level_pct ?? st.water_level ?? (isActive ? 75 : 20);
+        return (
+          <div key={st.station_id || i} style={{
+            background:'var(--bg2)', border:'1px solid var(--border)',
+            borderRadius:'var(--r)', padding:'12px 14px',
+            transition:'border-color 0.2s',
+          }}>
+            <div style={{ display:'flex', alignItems:'flex-start', gap:'10px' }}>
+              <div style={{
+                width:'36px', height:'36px', borderRadius:'9px', flexShrink:0,
+                background: isActive ? 'rgba(0,212,255,0.12)' : 'rgba(100,100,100,0.12)',
+                border: `1px solid ${isActive ? 'rgba(0,212,255,0.3)' : 'var(--border)'}`,
+                display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px',
+              }}>💧</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:'13px', letterSpacing:'0.3px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{st.name}</div>
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginTop:'3px' }}>
+                  <span style={{
+                    fontFamily:'Space Mono,monospace', fontSize:'8px', fontWeight:700, letterSpacing:'1px',
+                    padding:'2px 7px', borderRadius:'4px',
+                    background: isActive ? 'rgba(0,255,136,0.10)' : 'rgba(100,100,100,0.10)',
+                    color: isActive ? 'var(--green)' : 'var(--muted)',
+                    border: `1px solid ${isActive ? 'rgba(0,255,136,0.25)' : 'var(--border)'}`,
+                  }}>● {isActive ? 'ACTIVE' : 'OFFLINE'}</span>
+                  {st.capacity && (
+                    <span style={{ fontFamily:'Space Mono,monospace', fontSize:'8.5px', color:'var(--muted2)' }}>Cap: {st.capacity}</span>
+                  )}
                 </div>
-                <span className="text-[11px] font-data font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
-                  -{st.temp_drop_celsius}°C
-                </span>
+                <WaterBar pct={waterPct} />
+                <div style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', color:'var(--muted2)', marginTop:'3px' }}>Water: {waterPct}%</div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 bg-slate-900/90 p-2 rounded-lg border border-slate-800 text-xs mb-3 font-data">
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Radius</span>
-                  <strong className="text-slate-200">{st.cooling_radius_m}m</strong>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block">Capacity</span>
-                  <strong className="text-slate-200">{st.capacity_ppl_hr} ppl/hr</strong>
-                </div>
-              </div>
-
-              {/* Water reservoir bar */}
-              <div className="mb-3">
-                <span className="text-[10px] text-slate-500 font-data block mb-1">Water Reservoir</span>
-                <WaterBar pct={st.water_level_pct} />
-              </div>
-
-              {/* Fixed: navigate button now calls onNavigateToStation to fly map */}
-              <button
-                onClick={() => onNavigateToStation && onNavigateToStation(st)}
-                className="w-full py-2 bg-slate-800 hover:bg-cyan-900/40 text-cyan-300 font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-700 hover:border-cyan-500/40"
-              >
-                <Navigation className="w-3.5 h-3.5" />
-                View on Map
-              </button>
+              <button onClick={() => onNavigateToStation && onNavigateToStation(st)} style={{
+                background:'rgba(0,212,255,0.10)', border:'1px solid rgba(0,212,255,0.25)',
+                borderRadius:'8px', color:'var(--cyan)',
+                fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'11px',
+                padding:'6px 12px', cursor:'pointer', flexShrink:0, transition:'all 0.2s',
+              }}>📍 Navigate</button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        );
+      })}
     </div>
   );
 }

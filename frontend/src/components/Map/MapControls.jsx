@@ -1,84 +1,88 @@
 import React from 'react';
-import { Layers, Filter, Droplet, Flame, Compass, Map } from 'lucide-react';
 
 export default function MapControls({
-  layers, onToggleLayer,
+  layers, onToggleLayer, onChangeBaseMap, activeBaseMap,
   tempFilter, onChangeTempFilter,
-  baseMap, onChangeBaseMap
 }) {
   return (
-    <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-      {/* Layer Toggles */}
-      <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-3 rounded-xl shadow-xl text-xs space-y-2.5 max-w-[200px]">
-        <div className="flex items-center gap-1.5 font-semibold text-slate-200 border-b border-slate-800 pb-1.5">
-          <Layers className="w-3.5 h-3.5 text-orange-400" />
-          <span>Overlays</span>
-        </div>
+    <div style={{
+      position: 'absolute', top: '12px', right: '12px', zIndex: 400,
+      display: 'flex', flexDirection: 'column', gap: '8px',
+    }}>
+      {/* Overlays */}
+      <div style={{
+        background: 'rgba(11,11,28,0.92)', backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px',
+        padding: '12px', minWidth: '148px',
+      }}>
+        <p style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', letterSpacing:'2px', color:'var(--muted2)', marginBottom:'8px' }}>OVERLAYS</p>
         {[
-          { key: 'heatGrid',       icon: <Flame    className="w-3 h-3 text-orange-400" />, label: 'Thermal Grid' },
-          { key: 'coolingStations',icon: <Droplet  className="w-3 h-3 text-cyan-400"   />, label: 'Cooling Stations' },
-          { key: 'safeRoute',      icon: <Compass  className="w-3 h-3 text-emerald-400"/>, label: 'Safe Route' },
+          { key: 'heatGrid',        icon: '🔥', label: 'Thermal Grid'    },
+          { key: 'coolingStations', icon: '💧', label: 'Cooling Stations' },
+          { key: 'safeRoute',       icon: '🛡️', label: 'Safe Route'      },
         ].map(({ key, icon, label }) => (
-          <label key={key} className="flex items-center justify-between cursor-pointer text-slate-300 hover:text-white">
-            <span className="flex items-center gap-1.5">{icon}{label}</span>
-            <input
-              type="checkbox"
-              checked={layers[key]}
-              onChange={() => onToggleLayer(key)}
-              className="rounded bg-slate-800 border-slate-600 text-orange-500 focus:ring-0 cursor-pointer"
-            />
+          <label key={key} style={{ display:'flex', alignItems:'center', gap:'8px', cursor:'pointer', marginBottom:'6px' }}>
+            <div
+              onClick={() => onToggleLayer(key)}
+              style={{
+                width: '16px', height: '16px', borderRadius: '4px', cursor: 'pointer',
+                background: layers[key] ? 'var(--purple)' : 'var(--bg3)',
+                border: `1px solid ${layers[key] ? 'var(--purple)' : 'var(--border)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s', flexShrink: 0,
+              }}
+            >
+              {layers[key] && <span style={{ fontSize: '9px', color: '#fff' }}>✓</span>}
+            </div>
+            <span style={{ fontFamily:'Rajdhani,sans-serif', fontWeight:600, fontSize:'12px', color: layers[key] ? 'var(--text)' : 'var(--muted)' }}>
+              {icon} {label}
+            </span>
           </label>
         ))}
       </div>
 
-      {/* Basemap switcher — actually switches TileLayer */}
-      <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-3 rounded-xl shadow-xl text-xs space-y-2">
-        <div className="flex items-center gap-1.5 font-semibold text-slate-200 border-b border-slate-800 pb-1.5">
-          <Map className="w-3.5 h-3.5 text-purple-400" />
-          <span>Basemap</span>
-        </div>
-        <div className="grid grid-cols-3 gap-1">
-          {[
-            { id: 'dark',      label: 'Dark' },
-            { id: 'satellite', label: 'Sat' },
-            { id: 'streets',   label: 'Streets' },
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => onChangeBaseMap(id)}
-              className={`px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
-                baseMap === id
-                  ? 'bg-purple-600 text-white font-bold'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {label}
-            </button>
+      {/* Basemap */}
+      <div style={{
+        background: 'rgba(11,11,28,0.92)', backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px',
+        padding: '12px',
+      }}>
+        <p style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', letterSpacing:'2px', color:'var(--muted2)', marginBottom:'8px' }}>BASEMAP</p>
+        <div style={{ display:'flex', gap:'4px' }}>
+          {[{id:'dark',label:'Dark'},{id:'satellite',label:'Sat'},{id:'streets',label:'Streets'}].map(bm => (
+            <button key={bm.id} onClick={() => onChangeBaseMap(bm.id)} style={{
+              flex: 1, padding: '5px 4px',
+              background: activeBaseMap === bm.id
+                ? 'linear-gradient(135deg,var(--purple),rgba(90,29,204,0.8))'
+                : 'var(--bg3)',
+              border: `1px solid ${activeBaseMap === bm.id ? 'rgba(157,78,221,0.5)' : 'var(--border)'}`,
+              borderRadius: '6px', color: activeBaseMap === bm.id ? '#fff' : 'var(--muted)',
+              fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'10px',
+              cursor:'pointer', transition:'all 0.2s',
+            }}>{bm.label}</button>
           ))}
         </div>
       </div>
 
-      {/* Thermal filter */}
-      <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-3 rounded-xl shadow-xl text-xs space-y-2">
-        <div className="flex items-center gap-1.5 font-semibold text-slate-200 border-b border-slate-800 pb-1.5">
-          <Filter className="w-3.5 h-3.5 text-amber-400" />
-          <span>Thermal Filter</span>
-        </div>
-        <div className="grid grid-cols-3 gap-1">
-          {[
-            { id: 'all', label: 'All',    cls: 'bg-orange-500 text-white' },
-            { id: '35',  label: '>35°C',  cls: 'bg-amber-500 text-slate-950' },
-            { id: '40',  label: '>40°C',  cls: 'bg-red-500 text-white' },
-          ].map(({ id, label, cls }) => (
-            <button
-              key={id}
-              onClick={() => onChangeTempFilter(id)}
-              className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-                tempFilter === id ? cls : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {label}
-            </button>
+      {/* Temp Filter */}
+      <div style={{
+        background: 'rgba(11,11,28,0.92)', backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px',
+        padding: '12px',
+      }}>
+        <p style={{ fontFamily:'Space Mono,monospace', fontSize:'8px', letterSpacing:'2px', color:'var(--muted2)', marginBottom:'8px' }}>THERMAL FILTER</p>
+        <div style={{ display:'flex', gap:'4px' }}>
+          {[{id:'all',label:'All'},{id:'35',label:'>35°C'},{id:'40',label:'>40°C'}].map(f => (
+            <button key={f.id} onClick={() => onChangeTempFilter(f.id)} style={{
+              flex:1, padding:'5px 4px',
+              background: tempFilter === f.id
+                ? 'linear-gradient(135deg,var(--orange),var(--pink))'
+                : 'var(--bg3)',
+              border: `1px solid ${tempFilter === f.id ? 'rgba(255,107,53,0.4)' : 'var(--border)'}`,
+              borderRadius:'6px', color: tempFilter === f.id ? '#fff' : 'var(--muted)',
+              fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'10px',
+              cursor:'pointer', transition:'all 0.2s',
+            }}>{f.label}</button>
           ))}
         </div>
       </div>
