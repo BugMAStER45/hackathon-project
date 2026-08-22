@@ -3,7 +3,7 @@ import { Flame, Activity, Shield } from 'lucide-react';
 
 export default function LandingPage({ onEnter }) {
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: '#060610' }}>
+    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden" style={{ background: '#000000' }}>
       {/* Cinematic glowing background orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-pink-600/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none" />
@@ -19,10 +19,10 @@ export default function LandingPage({ onEnter }) {
           <Flame size={60} color="#fff" />
         </div>
 
-        {/* Title */}
-        <h1 style={{ 
+        {/* Title with Rainbow Aurora Effect */}
+        <h1 className="aurora-text" style={{ 
           fontFamily: 'Bebas Neue,sans-serif', fontSize: '96px', letterSpacing: '10px', 
-          color: 'var(--text)', lineHeight: 1, textShadow: '0 0 30px rgba(255,255,255,0.1)' 
+          lineHeight: 1
         }}>
           HEATSHIELD
         </h1>

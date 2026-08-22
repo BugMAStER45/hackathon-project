@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { formatTemp, getTempColor } from '../../utils/thermalCalculators';
 import HeatLegend from './HeatLegend';
 import MapControls from './MapControls';
+import { Loader2 } from 'lucide-react';
 
 const TILE_URLS = {
   dark:      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -24,17 +25,21 @@ function FlyTo({ center, zoom }) {
   return null;
 }
 
-function TileLayerSwitcher({ baseMap }) {
+function TileLayerSwitcher({ baseMap, onMapLoading }) {
   return (
     <TileLayer
       key={baseMap}
-      url={TILE_URLS[baseMap] || TILE_URLS.dark}
-      attribution={TILE_ATTR[baseMap] || TILE_ATTR.dark}
+      url={TILE_URLS[baseMap] || TILE_URLS.satellite}
+      attribution={TILE_ATTR[baseMap] || TILE_ATTR.satellite}
       maxZoom={19}
       keepBuffer={8}
       updateWhenZooming={false}
       updateWhenIdle={true}
       className={baseMap === 'dark' ? 'dark-map-filter' : ''}
+      eventHandlers={{
+        loading: () => onMapLoading(true),
+        load: () => onMapLoading(false),
+      }}
     />
   );
 }
@@ -46,10 +51,11 @@ export default function ThermalMap({
   unit,
   highlightStation,
 }) {
-  const [layers,     setLayers]     = useState({ heatGrid: true, coolingStations: true, safeRoute: true });
-  const [tempFilter, setTempFilter] = useState('all');
-  const [baseMap,    setBaseMap]    = useState('dark');
-  const [flyTarget,  setFlyTarget]  = useState(null);
+  const [layers,       setLayers]       = useState({ heatGrid: true, coolingStations: true, safeRoute: true });
+  const [tempFilter,   setTempFilter]   = useState('all');
+  const [baseMap,      setBaseMap]      = useState('satellite'); // DEFAULT SET TO SATELLITE
+  const [flyTarget,    setFlyTarget]    = useState(null);
+  const [isMapLoading, setIsMapLoading] = useState(false);
 
   useEffect(() => {
     if (highlightStation) {
@@ -92,7 +98,7 @@ export default function ThermalMap({
         zoomSnap={0.5}
         zoomDelta={0.5}
       >
-        <TileLayerSwitcher baseMap={baseMap} />
+        <TileLayerSwitcher baseMap={baseMap} onMapLoading={setIsMapLoading} />
         {flyTarget && <FlyTo center={flyTarget.center} zoom={flyTarget.zoom} />}
 
         {/* Heat Zone Markers */}
@@ -154,6 +160,20 @@ export default function ThermalMap({
           />
         )}
       </MapContainer>
+
+      {/* OVERLAY LOADING INDICATOR */}
+      {isMapLoading && (
+        <div style={{
+          position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(6,6,16,0.95)', border: '1px solid var(--border)',
+          color: 'var(--text)', padding: '10px 24px', borderRadius: '30px',
+          fontFamily: 'Space Mono,monospace', fontSize: '11px', letterSpacing: '2px', zIndex: 1000,
+          display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.8)'
+        }}>
+          <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+          LOADING MAP TILES...
+        </div>
+      )}
 
       {/* Overlay Controls */}
       <MapControls

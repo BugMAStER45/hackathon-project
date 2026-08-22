@@ -169,3 +169,18 @@ body::before {
 .dark-map-filter {
   filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(95%) saturate(80%) sepia(10%) !important;
 }
+
+/* ── AURORA RAINBOW TEXT ANIMATION ── */
+@keyframes aurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.aurora-text {
+  background: linear-gradient(135deg, #00FF88, #00D4FF, #9D4EDD, #FF2D55, #00FF88);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: aurora 6s ease infinite;
+}
