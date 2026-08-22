@@ -82,8 +82,8 @@ export default function Navbar({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}><Flame size={16} color="#fff" /></div>
             <div>
-              <div style={{ fontFamily: 'Bebas Neue,sans-serif', fontSize: '18px', letterSpacing: '3px', lineHeight: 1, color: 'var(--text)' }}>HEATSHIELD</div>
-              <div style={{ fontFamily: 'Space Mono,monospace', fontSize: '7px', letterSpacing: '2px', color: 'var(--muted2)', lineHeight: 1 }}>FortyGuard Platform</div>
+              <div style={{ fontFamily: 'Bebas Neue,sans-serif', fontSize: '18px', letterSpacing: '3px', lineHeight: 1, color: 'var(--text)' }}>AEGIS-OASIS</div>
+              <div style={{ fontFamily: 'Space Mono,monospace', fontSize: '7px', letterSpacing: '2px', color: 'var(--muted2)', lineHeight: 1 }}>Urban Resilience Platform</div>
             </div>
           </div>
 
