@@ -6,8 +6,6 @@ import HeatLegend from './HeatLegend';
 import MapControls from './MapControls';
 
 const TILE_URLS = {
-  // Using OSM for everything since it is 100% reliable and never blocked by adblockers.
-  // We use CSS inversion for the dark mode.
   dark:      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   streets:   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -33,6 +31,9 @@ function TileLayerSwitcher({ baseMap }) {
       url={TILE_URLS[baseMap] || TILE_URLS.dark}
       attribution={TILE_ATTR[baseMap] || TILE_ATTR.dark}
       maxZoom={19}
+      keepBuffer={8}
+      updateWhenZooming={false}
+      updateWhenIdle={true}
       className={baseMap === 'dark' ? 'dark-map-filter' : ''}
     />
   );
@@ -87,6 +88,9 @@ export default function ThermalMap({
         zoom={13}
         style={{ width: '100%', height: '100%', background: '#060610' }}
         zoomControl={true}
+        wheelPxPerZoomLevel={120}
+        zoomSnap={0.5}
+        zoomDelta={0.5}
       >
         <TileLayerSwitcher baseMap={baseMap} />
         {flyTarget && <FlyTo center={flyTarget.center} zoom={flyTarget.zoom} />}

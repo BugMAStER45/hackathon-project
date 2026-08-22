@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
+import LandingPage from './components/LandingPage';
 import ThermalMap from './components/Map/ThermalMap';
 import HotspotList from './components/Planner/HotspotList';
 import StationOptimizer from './components/Planner/StationOptimizer';
@@ -15,9 +16,10 @@ import { api } from './services/api';
 let _toastId = 0;
 
 export default function App() {
-  const [cityId,    setCityId]    = useState('los_angeles');
-  const [activeTab, setActiveTab] = useState('map');
-  const [unit,      setUnit]      = useState('C');
+  const [entered,     setEntered]   = useState(false);
+  const [cityId,      setCityId]    = useState('los_angeles');
+  const [activeTab,   setActiveTab] = useState('map');
+  const [unit,        setUnit]      = useState('C');
 
   const [zones,           setZones]           = useState([]);
   const [hotspots,        setHotspots]        = useState([]);
@@ -70,7 +72,9 @@ export default function App() {
     }
   }, [cityId, retryCount]);
 
-  useEffect(() => { fetchCityData(); }, [fetchCityData]);
+  useEffect(() => { 
+    if (entered) fetchCityData(); 
+  }, [entered, fetchCityData]);
 
   async function handleDeployStation(rec) {
     try {
@@ -126,6 +130,10 @@ export default function App() {
         );
       default: return null;
     }
+  }
+
+  if (!entered) {
+    return <LandingPage onEnter={() => setEntered(true)} />;
   }
 
   // ── METRIC BANNER ────────────────────────────────────
